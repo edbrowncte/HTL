@@ -24,7 +24,7 @@ function computeHTLCore(candles, length){
 }
 
 async function fetchOANDA(pair, granularity, count, token, env){
-  const url=`https://api-fx${env==="live" ? "" : "practice"}.oanda.com/v3/instruments/${pair}/candles?granularity=${granularity}&count=${count}&price=M`;
+  const url=`https://api-fx${env==="live" ? "trade" : "practice"}.oanda.com/v3/instruments/${pair}/candles?granularity=${granularity}&count=${count}&price=M`;
   const res=await fetch(url,{headers:{Authorization:`Bearer ${token}`}});
   if(!res.ok) throw new Error(`OANDA ${pair} ${res.status}`);
   const json=await res.json();
