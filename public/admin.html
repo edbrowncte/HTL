@@ -1,0 +1,1504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>28-Pair HTL - Global Schedule Sortable Independent Settings</title>
+<style>
+:root{--brown:#5a2f0f;--brown2:#8b5a2e;--light:#e8cda3;--light2:#f2dcc0;--light3:#fff6e0;--line:#a67c52}
+*{box-sizing:border-box}html,body{margin:0;background:var(--brown);color:#000;font-family:Inter,system-ui}
+.topbar{position:sticky;top:0;z-index:400;background:var(--light);border-bottom:3px solid var(--brown2);padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.field{display:grid;gap:3px}.field span{font-size:10px;font-weight:900;text-transform:uppercase}
+.field input,.field select{background:var(--light3);border:1.5px solid var(--brown2);border-radius:5px;min-height:34px;padding:6px 8px;font-weight:700;color:#000}
+button{border:1.5px solid var(--brown2);background:var(--light2);border-radius:6px;padding:7px 10px;font-weight:900;cursor:pointer}
+button.active{background:var(--brown2);color:#fff}
+.shell{padding:12px}#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(780px,1fr));gap:16px}
+.card{background:var(--light);border:2.5px solid var(--brown2);border-radius:10px;overflow:hidden}
+.card-head{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--light2);border-bottom:2px solid var(--line);align-items:end}
+.canvas-wrap{position:relative;background:var(--light3);border-bottom:1.5px solid var(--line)}
+.canvas-wrap.main canvas{height:560px} .canvas-wrap.perf canvas{height:150px}
+.canvas-wrap canvas{width:100%;display:block;cursor:crosshair}
+.ctrl{display:flex;flex-wrap:wrap;gap:4px;padding:6px;background:var(--light2);border-bottom:1.5px solid var(--line)} .ctrl button{font-size:11px;padding:4px 7px;min-height:28px}
+.key{display:flex;gap:10px;flex-wrap:wrap;padding:5px 8px;background:var(--light3);border-bottom:1px dashed var(--line);font-size:10px;font-weight:900}
+.key i{width:16px;height:3px;display:inline-block}
+.price-tag,.time-tag{position:absolute;background:var(--brown2);color:#fff;font-size:11px;font-weight:900;padding:2px 5px;border-radius:3px;pointer-events:none;z-index:2}
+.ticket{background:var(--light2);padding:8px;border-top:2px solid var(--line)} .tickets{display:grid;gap:8px}
+.tkt{display:grid;grid-template-columns:60px 1fr 1fr 1fr 70px 70px 90px 80px;gap:5px;align-items:end;background:var(--light3);border:1.5px solid var(--brown2);border-radius:7px;padding:6px}
+.tkt.off{opacity:.5}
+.schedule-panel{margin:12px;background:var(--light2);border:2px solid var(--brown2);border-radius:10px;overflow:hidden}
+.schedule-head{padding:8px 10px;background:var(--brown2);color:#fff;font-weight:900;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.schedule-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:end;background:var(--light);padding:8px;border-bottom:2px solid var(--line)}
+.schedule-wrap{overflow:auto;max-width:100%;max-height:520px}
+.schedule-table{width:100%;min-width:1800px;border-collapse:collapse;font-size:10px}
+.schedule-table th,.schedule-table td{border:1px solid var(--line);padding:5px 6px;white-space:nowrap;text-align:left}
+.schedule-table th{background:var(--light);position:sticky;top:0;z-index:2;font-size:9px;text-transform:uppercase;cursor:pointer;user-select:none}
+.schedule-table th:hover{background:var(--light2)}
+.schedule-table th.sort-asc::after{content:" ▲"}
+.schedule-table th.sort-desc::after{content:" ▼"}
+.schedule-table td{background:var(--light3)}
+.schedule-table tr:hover td{background:#fff0d0}
+.badge{display:inline-block;padding:2px 5px;border-radius:4px;font-weight:900;font-size:9px}
+.badge.buy{background:#bfe7bf;color:#0a4a0a}
+.badge.sell{background:#e7bfbf;color:#4a0a0a}
+.badge.high{background:#f5c6c6;color:#6a0a0a}
+.badge.low{background:#c6e7f5;color:#0a2a6a}
+.mono{font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div style="font-weight:900"><div style="font-size:19px">28-PAIR HTL - GLOBAL SCHEDULE SORTABLE + PER-CHART SCHEDULE</div><small>Global Schedule now independent — own Timeframe/Strategy/Length — sortable by column</small></div>
+  <div class="field"><span>Account ID</span><input id="acct"/></div>
+  <div class="field"><span>API Token</span><input id="token" type="password" style="min-width:220px"/></div>
+  <div class="field"><span>Env</span><select id="env"><option value="practice">practice</option><option value="live">live</option></select></div>
+  <div class="field"><span>Status</span><div style="display:flex;align-items:center;gap:6px;min-height:34px"><span id="dot" style="width:11px;height:11px;border-radius:50%;background:#888;display:inline-block"></span><span id="stat" style="font-size:11px;font-weight:900">Demo 5000</span></div></div>
+  <button id="btnConnect">Connect / Refresh All Charts</button>
+  <div class="field"><span>Global Length 450</span><input id="gLen" type="number" value="450"/></div>
+  <div class="field"><span>Global Filter NAI later</span><input id="gFilt" type="number" value="0.5" disabled style="opacity:.5"/></div>
+  <button id="btnApply">Apply Length To All Charts</button>
+</div>
+
+
+<!-- ADMIN ONLY - LENGTH OPTIMIZER - CUSTOMER NEVER SEES - PROTECTED BY ?admin=YOUR_SECRET -->
+<div id="adminPanel" style="display:block; margin:12px; background:#fff6e0; border:3px solid #8b5a2e; border-radius:10px; overflow:hidden">
+  <div style="padding:10px; background:#8b5a2e; color:#fff; font-weight:900; display:flex; justify-content:space-between; align-items:center">
+    <span>🔒 ADMIN ONLY — Length Optimizer Matrix — 28 pairs × 14 TFs — Inference for NFT</span>
+    <span style="font-size:10px">Requires ?admin=edbrown2024 in URL — customer never sees</span>
+  </div>
+  <div style="padding:10px; background:#e8cda3; display:flex; flex-wrap:wrap; gap:8px; align-items:end; border-bottom:2px solid #a67c52">
+    <div class="field"><span>Optimize Pair(s)</span><select id="adminPairMode"><option value="single">Single Pair</option><option value="all" selected>All 28 Pairs</option><option value="majors">Majors 7 Only</option></select></div>
+    <div class="field"><span>Optimize TF(s)</span><select id="adminTfMode"><option value="current">Current Global TF Only</option><option value="all" selected>All 14 TFs</option><option value="core">Core 5 (M5,M15,M30,H1,H4)</option></select></div>
+    <div class="field"><span>Length Scan</span><div style="display:flex; gap:4px"><input id="adminLenMin" type="number" value="50" style="width:70px"/><input id="adminLenMax" type="number" value="500" style="width:70px"/><input id="adminLenStep" type="number" value="10" style="width:60px"/></div></div>
+    <div class="field"><span>Scoring</span><select id="adminScoreMode"><option value="balanced" selected>Balanced R²*(1-p)*|Pips/Hr|*TransP</option><option value="pips">Max Pips/Hr</option><option value="r2">Max R²</option><option value="survival">Max TransP</option></select></div>
+    <button id="btnAdminScan" style="background:#5a2f0f; color:#fff; padding:10px 16px">🔍 SCAN Length Matrix</button>
+    <button id="btnAdminSave" style="background:#0a4a0a; color:#fff; padding:10px 16px">💾 Save / Export</button>
+    <span id="adminStatus" style="font-size:11px; font-weight:900"></span>
+  </div>
+  <div style="padding:8px; background:#f2dcc0; font-size:10px; font-weight:900; display:flex; gap:12px; flex-wrap:wrap">
+    <span>Progress: <span id="adminProgress">idle</span></span>
+    <span>Best Score: <span id="adminBestScore">-</span></span>
+    <span>Pairs: <span id="adminPairsDone">0/0</span></span>
+  </div>
+  <div class="schedule-wrap" style="max-height:600px"><table class="schedule-table" id="adminTable"><thead><tr>
+    <th>Pair</th><th>TF</th><th>Optimal Length</th><th>R²</th><th>p</th><th>Pips/Hr</th><th>TransP ≤5</th><th>FINAL n</th><th>Score</th><th>Prev</th><th>Delta</th>
+  </tr></thead><tbody></tbody></table></div>
+  <div style="padding:8px; background:#fff6e0; display:flex; gap:8px; flex-wrap:wrap">
+    <button id="btnExportJSON">Export JSON for Firebase</button>
+    <button id="btnExportCSV">Export CSV</button>
+    <button id="btnApplyOptimal">Apply Optimal to All Charts Now</button>
+    <textarea id="adminJSON" style="width:100%; min-height:120px; font-family:monospace; font-size:10px; display:block"></textarea>
+  </div>
+</div>
+
+<script>
+// ADMIN LENGTH OPTIMIZER - Hidden from customers - protected by ?admin=
+(function(){
+  const urlParams = new URLSearchParams(window.location.search);
+  const adminKey = urlParams.get('admin');
+  const ADMIN_SECRET = 'edbrown2024';
+  const isAdmin = adminKey === ADMIN_SECRET;
+  const panel = document.getElementById('adminPanel');
+  if(isAdmin){ panel.style.display='block'; console.log('Admin mode enabled'); }
+  else { return; }
+
+  let optimalMap = {};
+  let scanning = false;
+
+  function scoreEval(evalRow, mode){
+    const r2 = evalRow.r2 || 0;
+    const p = evalRow.p || 1;
+    const pipsHr = Math.abs(evalRow.pipsHr || 0);
+    const transP = evalRow.transP || 0;
+    const finalN = evalRow.finalEvents || 0;
+    if(finalN < 15) return -999;
+    if(p > 0.05) return -999;
+    if(mode==='pips') return pipsHr * (r2>0.15?1:0.5);
+    if(mode==='r2') return r2 * 100;
+    if(mode==='survival') return transP * 100;
+    return r2 * (1-p) * pipsHr * transP * Math.log(finalN);
+  }
+
+  async function scanLengthForPairTF(pair, tfObj, lenMin, lenMax, lenStep, scoreMode){
+    const state = states.find(s=>s.pair===pair);
+    let candles = state && state.candles && state.candles.length>500 ? state.candles : null;
+    if(!candles){
+      const token = document.getElementById('token').value;
+      const env = document.getElementById('env').value;
+      if(!token){ throw new Error('Need OANDA token'); }
+      const url = 'https://api-fx' + (env==='live'?'':'practice') + '.oanda.com/v3/instruments/' + pair + '/candles?granularity=' + tfObj.oanda + '&count=5000&price=M';
+      const res = await fetch(url, {headers:{Authorization:'Bearer ' + token}});
+      if(!res.ok) throw new Error('OANDA ' + pair + ' ' + res.status);
+      const json = await res.json();
+      candles = json.candles.filter(c=>c.complete).map(c=>({time:c.time, open:parseFloat(c.mid.o), high:parseFloat(c.mid.h), low:parseFloat(c.mid.l), close:parseFloat(c.mid.c)}));
+    }
+    let best = null;
+    for(let L=lenMin; L<=lenMax; L+=lenStep){
+      const calc = computeAll(candles, L, 'Asset', pair);
+      const asset = calc.asset ? calc.asset.filter(v=>Number.isFinite(v)) : [];
+      if(asset.length < 100) continue;
+      const y = asset.slice(-450);
+      const n=y.length; let sumX=0,sumY=0,sumXY=0,sumX2=0; for(let i=0;i<n;i++){sumX+=i; sumY+=y[i]; sumXY+=i*y[i]; sumX2+=i*i;}
+      const denom=n*sumX2-sumX*sumX; const slope=denom?(n*sumXY-sumX*sumY)/denom:0;
+      const meanY=sumY/n; let ssTot=0,ssRes=0; for(let i=0;i<n;i++){const fi=slope*i+(sumY-slope*sumX)/n; ssTot+=(y[i]-meanY)*(y[i]-meanY); ssRes+=(y[i]-fi)*(y[i]-fi);}
+      const r2=ssTot?1-ssRes/ssTot:0; const p=r2>0.5?0.001:r2>0.3?0.01:r2>0.15?0.05:0.2;
+      const anchors = calc.anchors || [];
+      const pip = pair.includes('JPY')?0.01:0.0001;
+      let totalPl=0,totalBars=0,finalN=0;
+      for(let i=0;i<anchors.length-1;i++){ const a=anchors[i],b=anchors[i+1]; const bars=b.index-a.index; const pl=a.direction<0?(candles[b.index].close-candles[a.index].close)/pip:(candles[a.index].close-candles[b.index].close)/pip; totalPl+=pl; totalBars+=bars; finalN++; }
+      const pipsHr=totalBars?totalPl/(totalBars* (tfObj.sec/3600)):0;
+      const durations=[]; for(let i=1;i<anchors.length;i++) durations.push(anchors[i].index-anchors[i-1].index);
+      const age = candles.length-1 - (anchors[anchors.length-1] ? anchors[anchors.length-1].index : 0);
+      const transP = durations.length? durations.filter(d=>d<=age+5).length/durations.length:0;
+      const evalRow={r2,p,pipsHr,transP,finalEvents:finalN};
+      const sc=scoreEval(evalRow, scoreMode);
+      if(best===null || sc>best.score){ best={length:L, r2, p, pipsHr, transP, finalN, score:sc, evalRow}; }
+    }
+    return best;
+  }
+
+  document.getElementById('btnAdminScan').addEventListener('click', async ()=>{
+    if(scanning) return; scanning=true;
+    const pairMode=document.getElementById('adminPairMode').value;
+    const tfMode=document.getElementById('adminTfMode').value;
+    const lenMin=parseInt(document.getElementById('adminLenMin').value)||50;
+    const lenMax=parseInt(document.getElementById('adminLenMax').value)||500;
+    const lenStep=parseInt(document.getElementById('adminLenStep').value)||10;
+    const scoreMode=document.getElementById('adminScoreMode').value;
+    
+    let pairsToScan = PAIRS;
+    if(pairMode==='single'){ const firstCardPair = document.querySelector('[data-k="pair"]') ? document.querySelector('[data-k="pair"]').value : 'EURUSD'; pairsToScan=[firstCardPair]; }
+    else if(pairMode==='majors'){ pairsToScan=["EURUSD","GBPUSD","USDJPY","AUDUSD","USDCAD","USDCHF","NZDUSD"]; }
+    
+    let tfsToScan = TFS;
+    if(tfMode==='current'){ const gtf=document.getElementById('globalTf') ? document.getElementById('globalTf').value : 'M5'; tfsToScan = TFS.filter(t=>t.oanda===gtf); }
+    else if(tfMode==='core'){ tfsToScan = TFS.filter(t=>['M5','M15','M30','H1','H4'].includes(t.oanda)); }
+
+    const total = pairsToScan.length * tfsToScan.length;
+    let done=0;
+    document.getElementById('adminStatus').textContent='Scanning ' + total + ' combos';
+    const tbody=document.querySelector('#adminTable tbody'); tbody.innerHTML='';
+
+    for(const pair of pairsToScan){
+      for(const tf of tfsToScan){
+        done++;
+        document.getElementById('adminPairsDone').textContent=done + '/' + total;
+        document.getElementById('adminProgress').textContent=pair + ' ' + tf.oanda;
+        try{
+          const best = await scanLengthForPairTF(pair, tf, lenMin, lenMax, lenStep, scoreMode);
+          const key=pair + '_' + tf.oanda;
+          const prev = optimalMap[key];
+          optimalMap[key]=best;
+          const delta = prev ? best.length - prev.length : 0;
+          const row=document.createElement('tr');
+          row.innerHTML='<td>' + pair + '</td><td>' + tf.oanda + '</td><td style="font-weight:900; background:#fff0d0">' + best.length + '</td><td>' + best.r2.toFixed(3) + '</td><td>' + best.p.toFixed(4) + '</td><td>' + best.pipsHr.toFixed(2) + '</td><td>' + (best.transP*100).toFixed(1) + '%</td><td>' + best.finalN + '</td><td>' + best.score.toFixed(2) + '</td><td>' + (prev?prev.length:'-') + '</td><td>' + (delta>0?'+'+delta:delta) + '</td>';
+          tbody.prepend(row);
+          document.getElementById('adminBestScore').textContent=best.score.toFixed(2);
+        }catch(e){
+          const row=document.createElement('tr'); row.innerHTML='<td>' + pair + '</td><td>' + tf.oanda + '</td><td colspan=9 style="color:red">' + e.message + '</td>'; tbody.prepend(row);
+        }
+        await new Promise(r=>setTimeout(r, 200));
+      }
+    }
+    document.getElementById('adminStatus').textContent='Scan complete: ' + Object.keys(optimalMap).length + ' optimal';
+    document.getElementById('adminProgress').textContent='done';
+    scanning=false;
+  });
+
+  document.getElementById('btnExportJSON').addEventListener('click', ()=>{
+    const out={};
+    Object.entries(optimalMap).forEach(([k,v])=>{ out[k]=v.length; });
+    const jsonStr=JSON.stringify(out, null, 2);
+    document.getElementById('adminJSON').style.display='block';
+    document.getElementById('adminJSON').value=jsonStr;
+    const blob=new Blob([jsonStr], {type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='htl-optimal-lengths-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
+  });
+
+  document.getElementById('btnExportCSV').addEventListener('click', ()=>{
+    let csv='pair,tf,optimalLength,r2,p,pipsHr,transP,finalN,score\n';
+    Object.entries(optimalMap).forEach(([k,v])=>{
+      const parts=k.split('_'); const pair=parts[0]; const tf=parts[1];
+      csv+=pair + ',' + tf + ',' + v.length + ',' + v.r2 + ',' + v.p + ',' + v.pipsHr + ',' + v.transP + ',' + v.finalN + ',' + v.score + '\n';
+    });
+    const blob=new Blob([csv], {type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='htl-optimal-lengths-' + new Date().toISOString().slice(0,10) + '.csv'; a.click();
+  });
+
+  document.getElementById('btnApplyOptimal').addEventListener('click', ()=>{
+    Object.entries(optimalMap).forEach(([k,v])=>{
+      const parts=k.split('_'); const pair=parts[0]; const tf=parts[1];
+      const st=states.find(s=>s.pair===pair);
+      if(st && st.tf.oanda===tf){ st.length=v.length; }
+    });
+    alert('Applied optimal lengths to matching charts');
+  });
+
+  document.getElementById('btnAdminSave').addEventListener('click', ()=>{
+    document.getElementById('btnExportJSON').click();
+  });
+
+})();
+</script>
+
+
+<div class="schedule-panel" id="globalSchedulePanel">
+  <div class="schedule-head">
+    <span>Global HTL Schedule — Independent Settings (does NOT depend on individual charts) — Click column headers to sort</span>
+    <span style="font-size:10px;opacity:.8">Filter ignored for HTL Asset — used for NAI z-scale later</span>
+  </div>
+  <div class="schedule-controls">
+    <div class="field"><span>Global Timeframe (independent)</span><select id="globalTf"></select></div>
+    <div class="field"><span>Global Strategy (independent)</span><select id="globalStrat"><option selected>Asset</option><option>Asset Inverse(HTL Asset)</option></select></div>
+    <div class="field"><span>Global Length (independent)</span><input id="globalLen" type="number" value="450" min="3" max="500"/></div>
+    <div class="field"><span>Global Filter NAI later</span><input id="globalFilter" type="number" value="0.5" disabled style="opacity:.5"/></div>
+    <button id="globalRefresh">Refresh Global Schedule</button>
+    <span id="globalStatus" style="font-size:10px;font-weight:900"></span>
+  </div>
+  <div class="schedule-wrap"><table class="schedule-table" id="globalScheduleTable"><thead><tr>
+    <th data-col="pair">Currency pair</th>
+    <th data-col="timeframe">Timeframe</th>
+    <th data-col="strategy">Strategy</th>
+    <th data-col="length">Length</th>
+    <th data-col="filter">Filter</th>
+    <th data-col="currentPrice">Current Price</th>
+    <th data-col="currentEvent">Current Event</th>
+    <th data-col="currentEventOpen">Current Event Open</th>
+    <th data-col="location">Location</th>
+    <th data-col="completion5">Completion ≤5 bars</th>
+    <th data-col="completion10">Completion ≤10 bars</th>
+    <th data-col="events">Events</th>
+    <th data-col="durationMAE">Duration MAE</th>
+    <th data-col="envelopeMAE">Envelope MAE</th>
+    <th data-col="onsetBrier">Onset Brier</th>
+    <th data-col="historicalBrier">Historical Brier</th>
+    <th data-col="nextEvent">Next HTL event</th>
+    <th data-col="forecastEnvelope">Forecast envelope</th>
+  </tr></thead><tbody></tbody></table></div>
+</div>
+
+<div class="schedule-panel" id="globalSurvivalPanel">
+  <div class="schedule-head">
+    <span>Historical Event Survival · Current Event Maturity — FINAL same-direction events conditioned on having reached current event age · horizons +1 / +5 / +10 / +18 bars</span>
+    <span style="display:flex;gap:6px"><button id="exportGlobalSurvival">Export JSON</button><span style="font-size:10px;opacity:.8">Filter ignored for HTL</span></span>
+  </div>
+  <div class="schedule-wrap"><table class="schedule-table" id="globalSurvivalTable"><thead><tr>
+    <th data-col="pair">Currency pair ▲</th>
+    <th data-col="currentEvent">Current event</th>
+    <th data-col="age">Age (bars)</th>
+    <th data-col="additionalLife">Additional event life</th>
+    <th data-col="historicalSurvival">Historical survival</th>
+    <th data-col="n">n</th>
+    <th data-col="meanBars">Mean bars</th>
+    <th data-col="medianBars">Median bars</th>
+    <th data-col="meanFav">Mean favorable move</th>
+    <th data-col="meanAdv">Mean adverse move</th>
+    <th data-col="medianUpside">Median ultimate upside</th>
+    <th data-col="medianDownside">Median ultimate downside</th>
+    <th data-col="p25Upside">25th-pctl upside</th>
+    <th data-col="p25Downside">25th-pctl downside</th>
+  </tr></thead><tbody></tbody></table></div>
+</div>
+
+
+<div class="shell"><div id="grid"></div></div>
+<script>
+// === HTL CORE ===
+function htlSeriesAverage(v,l){let t=0;return v.map((val,i)=>{t+=val;if(i>=l)t-=v[i-l];return t/l;});}
+function htlSeriesStdev(values,length){
+  const out=Array(values.length).fill(null);if(values.length<length)return out;
+  let off=values.find(x=>Number.isFinite(x))||0,s=0,s2=0,bad=0;
+  for(let i=0;i<length;i++){const v=values[i];if(!Number.isFinite(v))bad++;else{const y=v-off;s+=y;s2+=y*y;}}
+  const wr=i=>{if(!bad){const m=s/length;out[i]=Math.sqrt(Math.max(0,s2/length-m*m));}};wr(length-1);
+  for(let i=length;i<values.length;i++){const inc=values[i],outg=values[i-length];if(!Number.isFinite(inc))bad++;else{const y=inc-off;s+=y;s2+=y*y;}if(!Number.isFinite(outg))bad--;else{const y=outg-off;s-=y;s2-=y*y;}wr(i);}return out;
+}
+function htlSeriesWma(values,length){
+  const out=Array(values.length).fill(null);if(values.length<length)return out;const den=length*(length+1)/2;let sum=0,w=0,bad=0;
+  for(let i=0;i<length;i++){const v=values[i];if(!Number.isFinite(v))bad++;else{sum+=v;w+=(i+1)*v;}}if(!bad)out[length-1]=w/den;
+  for(let i=length;i<values.length;i++){const inc=values[i],outg=values[i-length],oldS=sum,oldBad=bad;if(!Number.isFinite(inc))bad++;else sum+=inc;if(!Number.isFinite(outg))bad--;else sum-=outg;if(!bad){if(!oldBad&&Number.isFinite(inc)&&Number.isFinite(outg))w=w-oldS+length*inc;else{w=0;for(let j=0;j<length;j++)w+=(j+1)*values[i-length+1+j];}out[i]=w/den;}}return out;
+}
+function htlPairAverage(l=[],r=[]){const sz=Math.max(l.length,r.length);return Array.from({length:sz},(_,i)=>Number.isFinite(l[i])&&Number.isFinite(r[i])?(l[i]+r[i])/2:null);}
+function htlNorm(l=[],r=[],d=[]){const sz=Math.max(l.length,r.length,d.length);return Array.from({length:sz},(_,i)=>Number.isFinite(l[i])&&Number.isFinite(r[i])&&Number.isFinite(d[i])&&d[i]!==0?(l[i]-r[i])/d[i]:null);}
+function htlInverse(z=[],dev=[],c=[]){const sz=Math.max(z.length,dev.length,c.length);return Array.from({length:sz},(_,i)=>Number.isFinite(z[i])&&Number.isFinite(dev[i])&&Number.isFinite(c[i])? -z[i]*dev[i]+c[i]:null);}
+function htlCross(l,r,i){if(i<1)return 0;const v=[l[i],r[i],l[i-1],r[i-1]];if(!v.every(Number.isFinite))return 0;if(l[i]>r[i]&&l[i-1]<=r[i-1])return 1;if(l[i]<r[i]&&l[i-1]>=r[i-1])return -1;return 0;}
+function htlCore(data,length){
+  const close=data.map(c=>c.close),high=data.map(c=>c.high),low=data.map(c=>c.low);
+  const avg=htlSeriesAverage(close,length),dev=htlSeriesStdev(close,length);
+  const zero=dev.map(v=>Number.isFinite(v)&&v!==0?0:null);
+  const u=zero.map((v,i)=>Number.isFinite(v)&&Number.isFinite(dev[i])? v*dev[i]+avg[i]:null);
+  const wmaU=htlSeriesWma(u,length),zu=htlNorm(u,wmaU,dev),ii=htlInverse(zu,dev,wmaU);
+  const hl2=high.map((v,i)=>(v+low[i])/2),mui=htlPairAverage(ii,u),wmaMui=htlSeriesWma(mui,length);
+  const zui=htlNorm(mui,wmaMui,dev),iuz=zui.map(v=>Number.isFinite(v)?-v:null),ui=htlInverse(zui,dev,wmaMui);
+  const uim=htlPairAverage(mui,ui),wmaUim=htlSeriesWma(uim,length),zim=htlNorm(uim,wmaUim,dev),uir=htlInverse(zim,dev,wmaUim);
+  const miu=htlPairAverage(uim,uir),wmaMiu=htlSeriesWma(miu,length),zmiu=htlNorm(miu,wmaMiu,dev);
+  const ia=zmiu.map((v,i)=>Number.isFinite(v)&&Number.isFinite(dev[i])&&Number.isFinite(wmaMiu[i])? (v+1)*dev[i]+wmaMiu[i]:null);
+  const id=zmiu.map((v,i)=>Number.isFinite(v)&&Number.isFinite(dev[i])&&Number.isFinite(wmaMiu[i])? (v-1)*dev[i]+wmaMiu[i]:null);
+  const up=htlPairAverage(ia,id),wmaUp=htlSeriesWma(up,length),zup=htlNorm(close,wmaUp,dev),upr=htlInverse(zup,dev,wmaUp);
+  return {close,high,low,avg,dev,zero,u,wmaU,zu,i:ii,hl2,mui,wmaMui,zui,iuz,ui,uim,wmaUim,zim,uir,miu,wmaMiu,zmiu,ia,id,up,wmaUp,zup,upr};
+}
+function htlBuild(data,length){
+  const s=htlCore(data,length),fams=[[s.hl2,s.upr],[s.mui,s.ui],[s.zui,s.iuz]],crosses=[];
+  for(let i=1;i<data.length;i++){const dirs=fams.map(p=>htlCross(p[0],p[1],i)).filter(Boolean);const vote=dirs.reduce((a,b)=>a+b,0);if(vote)crosses.push({index:i,direction:Math.sign(vote)});}
+  let anchors=[],active=null;
+  const fin=(ep,end)=>{let price=ep.direction>0?-Infinity:Infinity,ei=ep.index;for(let j=ep.index;j<=end;j++){const v=ep.direction>0?data[j].high:data[j].low;if((ep.direction>0&&v>price)||(ep.direction<0&&v<price)){price=v;ei=j;}}return {index:ei,price,direction:ep.direction};}
+  crosses.forEach(ev=>{if(active&&ev.direction!==active.direction){anchors.push(fin(active,Math.max(active.index,ev.index-1)));active=ev;}else if(!active)active=ev;});
+  if(active)anchors.push(fin(active,data.length-1));
+  anchors.sort((a,b)=>a.index-b.index);
+  const dedup=[];anchors.forEach(a=>{if(dedup.length&&dedup.at(-1).index===a.index)dedup[dedup.length-1]=a;else dedup.push(a);});
+  const asset=Array(data.length).fill(null);
+  if(dedup.length){
+    for(let i=0;i<=dedup[0].index;i++)asset[i]=dedup[0].price;
+    for(let p=1;p<dedup.length;p++){const f=dedup[p-1],t=dedup[p],sp=Math.max(1,t.index-f.index);for(let i=f.index;i<=t.index;i++)asset[i]=f.price+(t.price-f.price)*((i-f.index)/sp);}
+    const last=dedup.at(-1);for(let i=last.index;i<data.length;i++)asset[i]=last.price;
+  }
+  const invWma=htlSeriesWma(asset,length),inverse=asset.map((v,i)=>Number.isFinite(v)&&Number.isFinite(invWma[i])?2*invWma[i]-v:null);
+  return {asset,inverse,anchors:dedup,crosses,core:s,usedFallback:false};
+}
+function htlBuildFallback(data,length){
+  let r=htlBuild(data,length);
+  if(r.anchors.length<2){
+    const small=Math.max(10,Math.round(length/5));
+    let rs=htlBuild(data,small);
+    if(rs.anchors.length>=2){
+      const asset=Array(data.length).fill(null);
+      const dd=rs.anchors;
+      for(let i=0;i<=dd[0].index;i++)asset[i]=dd[0].price;
+      for(let p=1;p<dd.length;p++){const f=dd[p-1],t=dd[p],sp=Math.max(1,t.index-f.index);for(let i=f.index;i<=t.index;i++)asset[i]=f.price+(t.price-f.price)*((i-f.index)/sp);}
+      const last=dd.at(-1);for(let i=last.index;i<data.length;i++)asset[i]=last.price;
+      const invWma=htlSeriesWma(asset,length),inverse=asset.map((v,i)=>Number.isFinite(v)&&Number.isFinite(invWma[i])?2*invWma[i]-v:null);
+      return {asset,inverse,anchors:dd,crosses:rs.crosses,core:rs.core,usedFallback:false,smallLen:small};
+    }
+    const closes=data.map(c=>c.close);
+    const wma=htlSeriesWma(closes,length);
+    const asset=wma.map((v,i)=>Number.isFinite(v)?v:closes[i]);
+    const invWma=htlSeriesWma(asset,Math.max(3,Math.round(length/2)));
+    const inverse=asset.map((v,i)=>Number.isFinite(v)&&Number.isFinite(invWma[i])?2*invWma[i]-v:v);
+    const core=htlCore(data,small);
+    return {asset,inverse,anchors:[],crosses:[],core,usedFallback:true};
+  }
+  return r;
+}
+
+const PAIRS=["AUDCAD","AUDCHF","AUDJPY","AUDNZD","AUDUSD","CADCHF","CADJPY","CHFJPY","EURAUD","EURCAD","EURCHF","EURGBP","EURJPY","EURNZD","EURUSD","GBPAUD","GBPCAD","GBPCHF","GBPJPY","GBPNZD","GBPUSD","NZDCAD","NZDCHF","NZDJPY","NZDUSD","USDCAD","USDCHF","USDJPY"];
+const TFS=[
+ {label:"5 seconds",oanda:"S5",sec:5},{label:"15 seconds",oanda:"S15",sec:15},{label:"30 seconds",oanda:"S30",sec:30},
+ {label:"1 minute",oanda:"M1",sec:60},{label:"2 minutes",oanda:"M2",sec:120},{label:"3 minutes",oanda:"M3",sec:180},
+ {label:"5 minutes",oanda:"M5",sec:300},{label:"15 minutes",oanda:"M15",sec:900},{label:"30 minutes",oanda:"M30",sec:1800},
+ {label:"1 hour",oanda:"H1",sec:3600},{label:"2 hours",oanda:"H2",sec:7200},{label:"4 hours",oanda:"H4",sec:14400},
+ {label:"1 day",oanda:"D",sec:86400},{label:"1 week",oanda:"W",sec:604800},
+];
+function oandaUrl(env,pair,gran,count=5000){const b=env==="live"?"https://api-fxtrade.oanda.com":"https://api-fxpractice.oanda.com";return `${b}/v3/instruments/${pair.slice(0,3)}_${pair.slice(3)}/candles?granularity=${gran}&count=${count}&price=M`;}
+function synth(pair,count=5000){
+  const arr=[];let price=pair.includes("JPY")?110:1.2;for(let i=0;i<count;i++){const vol=price*0.008;const o=price;const c=o+(Math.random()-0.5)*vol;const h=Math.max(o,c)+Math.random()*vol*0.5;const l=Math.min(o,c)-Math.random()*vol*0.5;price=c;arr.push({time:new Date(Date.now()-(count-1-i)*300000),open:o,high:h,low:l,close:c});}return arr;
+}
+function pipSize(pair){return pair.includes("JPY")?0.01:0.0001;}
+
+function computeAll(candles,length,strategy,pair){
+  const htl=htlBuildFallback(candles,length);
+  const asset=htl.asset,inverse=htl.inverse;
+  const signals=[];
+  for(let i=1;i<candles.length;i++){
+    const a=asset[i], inv=inverse[i];
+    if(![a,inv,asset[i-1],inverse[i-1]].every(Number.isFinite))continue;
+    const cross=htlCross(asset,inverse,i);
+    if(cross!==0){
+      const price=candles[i].close;
+      let type = (strategy==="Asset") ? (cross===1?"buy":"sell") : (cross===1?"sell":"buy");
+      signals.push({idx:i,type,price,asset:a,inverse:inv,cross});
+    }
+  }
+  let pos=0, entry=0, equity=0;
+  const equityCurve=[];
+  let wins=0,losses=0,trades=0;
+  const pip=pipSize(pair);
+  for(let i=0;i<candles.length;i++){
+    const sig=signals.find(s=>s.idx===i);
+    if(sig){
+      if(pos!==0){
+        const pnl=(sig.price-entry)*(pos===1?1:-1);
+        equity+=pnl/pip;
+        trades++; if(pnl>0)wins++;else if(pnl<0)losses++;
+      }
+      pos=sig.type==="buy"?1:-1; entry=sig.price;
+    }
+    equityCurve.push(equity);
+  }
+  const schedule = computeScheduleMetrics(candles, htl, signals, strategy, length, 0.5, pair);
+  return {htl,signals,equityCurve,wins,losses,trades,lastEquity:equity,schedule};
+}
+
+function computeScheduleMetrics(candles, htl, signals, strategy, length, filter, pair){
+  const lastIdx=candles.length-1;
+  const lastCandle=candles[lastIdx];
+  const currentPrice=lastCandle.close;
+  const anchors=htl.anchors||[];
+  const asset=htl.asset, inverse=htl.inverse;
+  let durations=[];
+  for(let i=1;i<anchors.length;i++) durations.push(anchors[i].index-anchors[i-1].index);
+  const meanDuration = durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : 0;
+  const durationMAE = durations.length ? durations.reduce((a,d)=>a+Math.abs(d-meanDuration),0)/durations.length : 0;
+  let envWidths=[];
+  for(let i=0;i<candles.length;i++){ if(Number.isFinite(asset[i])&&Number.isFinite(inverse[i])) envWidths.push(Math.abs(inverse[i]-asset[i])); }
+  const meanEnv = envWidths.length ? envWidths.reduce((a,b)=>a+b,0)/envWidths.length : 0;
+  const envelopeMAE = envWidths.length ? envWidths.reduce((a,w)=>a+Math.abs(w-meanEnv),0)/envWidths.length : 0;
+  let currentEvent="No Event", currentEventOpen="—", location="—", completion5=0, completion10=0, nextEvent="—", forecastEnvelope="—", onsetBrier=0, historicalBrier=0;
+  let currentAge=0;
+  if(anchors.length>0){
+    const lastAnchor=anchors[anchors.length-1];
+    const lastAnchorTime=candles[lastAnchor.index]?.time;
+    currentAge=lastIdx-lastAnchor.index;
+    const anchorDir=lastAnchor.direction;
+    let eventType = anchorDir>0 ? "High Anchor" : "Low Anchor";
+    let lastSignal = signals.length ? signals[signals.length-1] : null;
+    if(lastSignal){
+      currentEvent = `${lastSignal.type.toUpperCase()} (${eventType})`;
+    }else{
+      currentEvent = eventType;
+    }
+    currentEventOpen = lastAnchorTime ? lastAnchorTime.toLocaleString() : `Bar ${lastAnchor.index}`;
+    let priceLoc=0;
+    if(Number.isFinite(asset[lastIdx])&&Number.isFinite(inverse[lastIdx])&&Math.abs(inverse[lastIdx]-asset[lastIdx])>1e-9){
+      priceLoc=(currentPrice-asset[lastIdx])/(inverse[lastIdx]-asset[lastIdx]);
+    }
+    location=`${currentAge} bars | PriceLoc ${(priceLoc*100).toFixed(1)}%`;
+    if(durations.length>0){
+      const overAge=durations.filter(d=>d>currentAge);
+      if(overAge.length>0){
+        const le5=overAge.filter(d=>d<=currentAge+5).length;
+        const le10=overAge.filter(d=>d<=currentAge+10).length;
+        completion5=le5/overAge.length;
+        completion10=le10/overAge.length;
+      }else{
+        completion5=1; completion10=1;
+      }
+      let brierSum=0;
+      durations.forEach(d=>{
+        const ageBefore=d-5;
+        if(ageBefore>=0){
+          const over=durations.filter(x=>x>ageBefore);
+          const prob=over.length? over.filter(x=>x<=ageBefore+5).length/over.length : 0;
+          brierSum+=Math.pow(prob-1,2);
+        }
+      });
+      historicalBrier = durations.length? brierSum/durations.length : 0.25;
+      onsetBrier = Math.pow(completion5-0,2)*0.5 + historicalBrier*0.5;
+      const nextDir = anchorDir>0 ? "Low Anchor" : "High Anchor";
+      const nextTimeBars = Math.round(meanDuration);
+      const nextTime = new Date(lastAnchorTime ? lastAnchorTime.getTime() + nextTimeBars*5*60*1000 : Date.now() + nextTimeBars*300000);
+      nextEvent = `${nextDir} in ~${nextTimeBars} bars (~${nextTime.toLocaleString()})`;
+      const forecastLow = currentPrice - meanEnv*0.8;
+      const forecastHigh = currentPrice + meanEnv*0.8;
+      forecastEnvelope = `${forecastLow.toFixed(5)} – ${forecastHigh.toFixed(5)} (±${(meanEnv).toFixed(5)})`;
+    }
+  }else{
+    currentEvent="No Anchors (Fallback WMA)";
+    currentEventOpen=candles[0]?.time?.toLocaleString()||"—";
+    location=`${candles.length} bars (fallback)`;
+    completion5=0; completion10=0;
+    nextEvent="Awaiting first anchor";
+    forecastEnvelope=`${(currentPrice-meanEnv).toFixed(5)} – ${(currentPrice+meanEnv).toFixed(5)}`;
+    historicalBrier=0.25; onsetBrier=0.25;
+  }
+  return {
+    pair, length, filter,
+    currentPrice,
+    currentEvent,
+    currentEventOpen,
+    location,
+    completion5,
+    completion10,
+    events: anchors.length,
+    durationMAE,
+    envelopeMAE,
+    onsetBrier,
+    historicalBrier,
+    nextEvent,
+    forecastEnvelope,
+    currentAge,
+    meanDuration,
+    meanEnv
+  };
+}
+
+
+function median(arr){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const mid=Math.floor(s.length/2); return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2; }
+function mean(arr){ if(!arr.length) return 0; return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function percentile(arr,p){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b); const idx=(p/100)*(s.length-1); const lo=Math.floor(idx), hi=Math.ceil(idx); if(lo===hi) return s[lo]; return s[lo]*(hi-idx)+s[hi]*(idx-lo); }
+function pipSizePair(pair){ return pair.includes("JPY")?0.01:0.0001; }
+
+function computeHistoricalSurvival(candles, htl, schedule, pair){
+  const anchors=htl.anchors||[];
+  if(anchors.length<2) return [];
+  const lastAnchor=anchors[anchors.length-1];
+  const currentAge=schedule.currentAge|| (candles.length-1-lastAnchor.index);
+  const currentDir=lastAnchor.direction;
+  const currentEventStr=schedule.currentEvent|| (currentDir>0?"High Anchor":"Low Anchor");
+  // historical same-direction completed events
+  const conditioned=[];
+  for(let i=0;i<anchors.length-1;i++){
+    const a=anchors[i];
+    if(a.direction!==currentDir) continue;
+    const nextA=anchors[i+1];
+    const duration=nextA.index - a.index;
+    if(duration < currentAge) continue; // didn't reach current age
+    const ageIdx=a.index + currentAge;
+    if(ageIdx>=candles.length) continue;
+    if(ageIdx>=nextA.index) continue;
+    const priceAtAge=candles[ageIdx]?.close;
+    if(!Number.isFinite(priceAtAge)) continue;
+    const endIdx=nextA.index;
+    // ultimate moves to end
+    let maxHigh=-Infinity, minLow=Infinity;
+    for(let k=ageIdx;k<=endIdx && k<candles.length;k++){
+      const c=candles[k];
+      if(c.high>maxHigh) maxHigh=c.high;
+      if(c.low<minLow) minLow=c.low;
+    }
+    const upsideUlt = maxHigh - priceAtAge;
+    const downsideUlt = priceAtAge - minLow;
+    const remaining=duration - currentAge;
+    conditioned.push({anchor:a, nextA, duration, ageIdx, endIdx, priceAtAge, upsideUlt, downsideUlt, remaining, maxHigh, minLow});
+  }
+  const n=conditioned.length;
+  if(n===0) return [];
+  const remainings=conditioned.map(c=>c.remaining);
+  const meanBars=mean(remainings);
+  const medianBars=median(remainings);
+  const upsUltArr=conditioned.map(c=>c.upsideUlt);
+  const downsUltArr=conditioned.map(c=>c.downsideUlt);
+  const medianUpside=median(upsUltArr);
+  const medianDownside=median(downsUltArr);
+  const p25Upside=percentile(upsUltArr,25);
+  const p25Downside=percentile(downsUltArr,25);
+  const horizons=[1,5,10,18];
+  const rows=[];
+  for(const h of horizons){
+    let surviveCount=0;
+    const favMoves=[];
+    const advMoves=[];
+    for(const c of conditioned){
+      if(c.remaining>=h) surviveCount++;
+      const winEnd=Math.min(c.ageIdx+h-1, c.endIdx);
+      let maxH=-Infinity, minL=Infinity;
+      for(let k=c.ageIdx;k<=winEnd && k<candles.length;k++){
+        const cc=candles[k];
+        if(cc.high>maxH) maxH=cc.high;
+        if(cc.low<minL) minL=cc.low;
+      }
+      const upH = maxH - c.priceAtAge;
+      const downH = c.priceAtAge - minL;
+      let fav, adv;
+      if(currentDir>0){ // High Anchor bearish, favorable is down
+        fav=downH; adv=upH;
+      }else{
+        fav=upH; adv=downH;
+      }
+      favMoves.push(fav);
+      advMoves.push(adv);
+    }
+    const histSurv = n ? surviveCount/n : 0;
+    rows.push({
+      pair,
+      currentEvent: currentEventStr,
+      age: currentAge,
+      additionalLife: h,
+      historicalSurvival: histSurv,
+      n,
+      meanBars,
+      medianBars,
+      meanFav: mean(favMoves),
+      meanAdv: mean(advMoves),
+      medianUpside,
+      medianDownside,
+      p25Upside,
+      p25Downside,
+      _favMoves: favMoves, _advMoves: advMoves
+    });
+  }
+  return rows;
+}
+
+let globalSurvivalData=[];
+let survSortCol=null, survSortDir=1;
+
+function renderGlobalSurvivalTable(){
+  const tbody=document.querySelector("#globalSurvivalTable tbody");
+  if(!tbody) return;
+  let html="";
+  globalSurvivalData.forEach(r=>{
+    html+=`<tr>
+      <td><strong>${r.pair}</strong></td>
+      <td><span class="badge ${r.currentEvent.toLowerCase().includes('buy')?'buy':r.currentEvent.toLowerCase().includes('sell')?'sell':r.currentEvent.includes('High')?'high':'low'}">${r.currentEvent}</span></td>
+      <td class="mono">${r.age}</td>
+      <td class="mono">+${r.additionalLife}</td>
+      <td class="mono">${(r.historicalSurvival*100).toFixed(1)}%</td>
+      <td class="mono">${r.n}</td>
+      <td class="mono">${r.meanBars.toFixed(1)}</td>
+      <td class="mono">${r.medianBars.toFixed(1)}</td>
+      <td class="mono">${r.meanFav.toFixed(5)}</td>
+      <td class="mono">${r.meanAdv.toFixed(5)}</td>
+      <td class="mono">${r.medianUpside.toFixed(5)}</td>
+      <td class="mono">${r.medianDownside.toFixed(5)}</td>
+      <td class="mono">${r.p25Upside.toFixed(5)}</td>
+      <td class="mono">${r.p25Downside.toFixed(5)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+}
+
+function sortAndRenderGlobalSurvival(){
+  if(!globalSurvivalData.length){ renderGlobalSurvivalTable(); return; }
+  if(!survSortCol){ renderGlobalSurvivalTable(); return; }
+  const col=survSortCol, dir=survSortDir;
+  globalSurvivalData.sort((a,b)=>{
+    let va,vb;
+    switch(col){
+      case "pair": va=a.pair; vb=b.pair; break;
+      case "currentEvent": va=a.currentEvent; vb=b.currentEvent; break;
+      case "age": va=a.age; vb=b.age; break;
+      case "additionalLife": va=a.additionalLife; vb=b.additionalLife; break;
+      case "historicalSurvival": va=a.historicalSurvival; vb=b.historicalSurvival; break;
+      case "n": va=a.n; vb=b.n; break;
+      case "meanBars": va=a.meanBars; vb=b.meanBars; break;
+      case "medianBars": va=a.medianBars; vb=b.medianBars; break;
+      case "meanFav": va=a.meanFav; vb=b.meanFav; break;
+      case "meanAdv": va=a.meanAdv; vb=b.meanAdv; break;
+      case "medianUpside": va=a.medianUpside; vb=b.medianUpside; break;
+      case "medianDownside": va=a.medianDownside; vb=b.medianDownside; break;
+      case "p25Upside": va=a.p25Upside; vb=b.p25Upside; break;
+      case "p25Downside": va=a.p25Downside; vb=b.p25Downside; break;
+      default: va=""; vb="";
+    }
+    if(typeof va==="string" && typeof vb==="string") return dir*va.localeCompare(vb);
+    if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+  });
+  renderGlobalSurvivalTable();
+}
+
+function exportJSON(data, filename){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+}
+
+
+function computeEventLedger(candles, htl, schedule, pair, timeframeLabel){
+  const anchors=htl.anchors||[];
+  const asset=htl.asset, inverse=htl.inverse;
+  const core=htl.core;
+  if(anchors.length<2) return [];
+  const rows=[];
+  const pip=pipSizePair(pair);
+  for(let i=0;i<anchors.length-1;i++){
+    const a=anchors[i];
+    const nextA=anchors[i+1];
+    const startIdx=a.index;
+    const endIdx=nextA.index;
+    const bars=endIdx-startIdx;
+    if(bars<=0) continue;
+    let high=-Infinity, low=Infinity;
+    let spreads=[];
+    for(let k=startIdx;k<=endIdx && k<candles.length;k++){
+      const c=candles[k];
+      if(c.high>high) high=c.high;
+      if(c.low<low) low=c.low;
+      if(Number.isFinite(asset[k]) && Number.isFinite(inverse[k])) spreads.push(Math.abs(inverse[k]-asset[k]));
+    }
+    const startPrice=a.price;
+    const endPrice=candles[endIdx]?.close ?? nextA.price;
+    const startClose=candles[startIdx]?.close ?? startPrice;
+    // P/L based on anchor direction: Low anchor (dir -1) = bullish long, High anchor (dir +1) = bearish short
+    let pl=0;
+    if(a.direction<0){ // Low -> long
+      pl=(endPrice - startClose)/pip;
+    }else{
+      pl=(startClose - endPrice)/pip;
+    }
+    const result= pl>0.1 ? "WIN" : pl<-0.1 ? "LOSS" : "FLAT";
+    const spreadMu=mean(spreads);
+    const spreadVar= spreads.length ? mean(spreads.map(v=>Math.pow(v-spreadMu,2))) : 0;
+    const slope = (Number.isFinite(asset[endIdx]) && Number.isFinite(asset[startIdx]) && bars) ? (asset[endIdx]-asset[startIdx])/bars : 0;
+    const area = spreads.reduce((s,v)=>s+v,0);
+    // source crosses near anchor
+    let sources=[];
+    const checkCross=(l,r,label)=>{
+      for(let d=-3;d<=3;d++){
+        const idx=a.index+d;
+        if(idx>=1 && idx<candles.length){
+          const cr=htlCross(l,r,idx);
+          if(cr!==0 && Math.sign(cr)===a.direction) { sources.push(label); break; }
+        }
+      }
+    };
+    if(core){
+      checkCross(core.hl2, core.upr, "hl2/upr");
+      checkCross(core.mui, core.ui, "mui/ui");
+      checkCross(core.zui, core.iuz, "zui/iuz");
+      checkCross(core.uim, core.uir, "uim/uir");
+    }
+    if(sources.length===0) sources=["voting"];
+    rows.push({
+      event: i+1,
+      pair,
+      timeframe: timeframeLabel,
+      status: "FINAL",
+      result,
+      pl,
+      start: startPrice,
+      bars,
+      high,
+      low,
+      spreadMu,
+      spreadVar,
+      slope,
+      area,
+      source: sources.join("+"),
+      startIdx, endIdx
+    });
+  }
+  // current open event
+  if(anchors.length>=1){
+    const last=anchors[anchors.length-1];
+    const startIdx=last.index;
+    const endIdx=candles.length-1;
+    const bars=endIdx-startIdx;
+    if(bars>0){
+      let high=-Infinity, low=Infinity, spreads=[];
+      for(let k=startIdx;k<=endIdx && k<candles.length;k++){
+        const c=candles[k];
+        if(c.high>high) high=c.high;
+        if(c.low<low) low=c.low;
+        if(Number.isFinite(asset[k]) && Number.isFinite(inverse[k])) spreads.push(Math.abs(inverse[k]-asset[k]));
+      }
+      const startPrice=last.price;
+      const endPrice=candles[endIdx]?.close ?? startPrice;
+      const startClose=candles[startIdx]?.close ?? startPrice;
+      let pl=0;
+      if(last.direction<0) pl=(endPrice-startClose)/pip; else pl=(startClose-endPrice)/pip;
+      const spreadMu=mean(spreads);
+      const spreadVar=spreads.length ? mean(spreads.map(v=>Math.pow(v-spreadMu,2))) : 0;
+      const slope=(Number.isFinite(asset[endIdx]) && Number.isFinite(asset[startIdx]) && bars) ? (asset[endIdx]-asset[startIdx])/bars : 0;
+      const area=spreads.reduce((s,v)=>s+v,0);
+      rows.push({
+        event: anchors.length,
+        pair,
+        timeframe: timeframeLabel,
+        status: "OPEN",
+        result: "OPEN",
+        pl,
+        start: startPrice,
+        bars,
+        high,
+        low,
+        spreadMu,
+        spreadVar,
+        slope,
+        area,
+        source: "current",
+        startIdx, endIdx
+      });
+    }
+  }
+  return rows;
+}
+
+let globalLedgerData=[];
+let ledgerSortCol=null, ledgerSortDir=1;
+
+function renderGlobalLedgerTable(){
+  const tbody=document.querySelector("#globalLedgerTable tbody");
+  if(!tbody) return;
+  const follow=document.getElementById("followSelectedPair")?.checked;
+  const ledgerPair=document.getElementById("ledgerPair")?.value;
+  let data=globalLedgerData;
+  if(follow && ledgerPair){
+    data=data.filter(r=>r.pair===ledgerPair);
+  }
+  let html="";
+  data.forEach(r=>{
+    html+=`<tr>
+      <td class="mono">${r.event}</td>
+      <td>${r.timeframe}</td>
+      <td><span class="badge ${r.status==="FINAL"?"low":"buy"}">${r.status}</span></td>
+      <td><span class="badge ${r.result==="WIN"?"buy":r.result==="LOSS"?"sell":"low"}">${r.result}</span></td>
+      <td class="mono">${r.pl.toFixed(1)}</td>
+      <td class="mono">${r.start.toFixed(5)}</td>
+      <td class="mono">${r.bars}</td>
+      <td class="mono">${r.high.toFixed(5)}</td>
+      <td class="mono">${r.low.toFixed(5)}</td>
+      <td class="mono">${r.spreadMu.toFixed(5)}</td>
+      <td class="mono">${r.spreadVar.toFixed(8)}</td>
+      <td class="mono">${r.slope.toFixed(7)}</td>
+      <td class="mono">${r.area.toFixed(3)}</td>
+      <td class="mono">${r.source}</td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+}
+
+function sortAndRenderGlobalLedger(){
+  if(!globalLedgerData.length){ renderGlobalLedgerTable(); return; }
+  if(!ledgerSortCol){ renderGlobalLedgerTable(); return; }
+  const col=ledgerSortCol, dir=ledgerSortDir;
+  globalLedgerData.sort((a,b)=>{
+    let va=a[col], vb=b[col];
+    if(col==="event"||col==="pl"||col==="bars"||col==="spreadMu"||col==="spreadVar"||col==="slope"||col==="area"||col==="start"||col==="high"||col==="low") { va=Number(va); vb=Number(vb); }
+    if(typeof va==="string" && typeof vb==="string") return dir*va.localeCompare(vb);
+    if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+  });
+  renderGlobalLedgerTable();
+}
+
+
+// ===== Evaluation Table & Rate Fluctuation Ranking =====
+function linearRegression(y){
+  const n=y.length;
+  if(n<3) return {slope:0, intercept:0, r2:0, f:0, p:1};
+  let sumX=0,sumY=0,sumXY=0,sumX2=0,sumY2=0;
+  for(let i=0;i<n;i++){ const x=i; sumX+=x; sumY+=y[i]; sumXY+=x*y[i]; sumX2+=x*x; sumY2+=y[i]*y[i]; }
+  const denom=n*sumX2 - sumX*sumX;
+  const slope=denom!==0 ? (n*sumXY - sumX*sumY)/denom : 0;
+  const intercept=(sumY - slope*sumX)/n;
+  // R2
+  const meanY=sumY/n;
+  let ssTot=0, ssRes=0;
+  for(let i=0;i<n;i++){ const yi=y[i]; const fi=slope*i+intercept; ssTot+=Math.pow(yi-meanY,2); ssRes+=Math.pow(yi-fi,2); }
+  const r2= ssTot===0?0:1-ssRes/ssTot;
+  const f= (r2===1|| n<=2) ? 999 : (r2/(1-r2))*(n-2);
+  // approx p-value from F (simplified)
+  const p= r2>0.5 ? 0.001 : r2>0.3 ? 0.01 : r2>0.15 ? 0.05 : 0.2;
+  return {slope, intercept, r2, f, p};
+}
+
+function computeEvaluationForPair(candles, htl, schedule, ledgerRows, pair, tfLabel, length){
+  const asset=htl.asset;
+  const inverse=htl.inverse;
+  const L=Math.min(length, asset.length);
+  const sliceAsset=asset.slice(-L).filter(v=>Number.isFinite(v));
+  const sliceInverse=inverse.slice(-L).filter(v=>Number.isFinite(v));
+  const regAsset=linearRegression(sliceAsset);
+  const regInv=linearRegression(sliceInverse);
+  const mas=regAsset.slope;
+  const im=regInv.slope;
+  const ratio= mas!==0 ? im/mas : 0;
+  // ROC = slope of last 10 vs previous 10
+  const last10=linearRegression(sliceAsset.slice(-10)).slope;
+  const prev10=linearRegression(sliceAsset.slice(-20,-10)).slope;
+  const masRoc= last10 - prev10;
+  const last10Inv=linearRegression(sliceInverse.slice(-10)).slope;
+  const prev10Inv=linearRegression(sliceInverse.slice(-20,-10)).slope;
+  const imRoc= last10Inv - prev10Inv;
+  const ratioRoc= mas!==0 ? (imRoc*mas - im*masRoc)/(mas*mas) : 0;
+  // Event Angle Z
+  const angles=[];
+  const anchors=htl.anchors||[];
+  for(let i=1;i<anchors.length;i++){
+    const a=anchors[i-1], b=anchors[i];
+    const dur=b.index-a.index;
+    if(dur>0 && Number.isFinite(b.price) && Number.isFinite(a.price)){
+      angles.push(Math.atan2(b.price-a.price, dur));
+    }
+  }
+  const meanAngle=mean(angles);
+  const stdAngle=Math.sqrt(mean(angles.map(v=>Math.pow(v-meanAngle,2)))||1);
+  const currentAngle=angles.length ? angles[angles.length-1] : 0;
+  const angleZ= stdAngle ? (currentAngle-meanAngle)/stdAngle : 0;
+  // Convexity = second derivative
+  const convex= sliceAsset.length>=3 ? sliceAsset[sliceAsset.length-1] -2*sliceAsset[sliceAsset.length-2]+sliceAsset[sliceAsset.length-3] : 0;
+  // Pips/Hr
+  const pip=pipSizePair(pair);
+  const finalLedgers=ledgerRows.filter(r=>r.status==="FINAL");
+  const totalPl=finalLedgers.reduce((s,r)=>s+r.pl,0);
+  const totalBars=finalLedgers.reduce((s,r)=>s+r.bars,0);
+  const tfMinutes={S5:5/60,M1:1,M5:5,M15:15,M30:30,H1:60,H2:120,H4:240,H6:360,H8:480,D:1440,W:10080}[tfLabel]||5;
+  const hours= totalBars * tfMinutes /60;
+  const pipsHr= hours>0 ? totalPl/hours : 0;
+  // Required IM = distance to flip voting
+  const lastSpread= sliceAsset.length && sliceInverse.length ? Math.abs(sliceInverse[sliceInverse.length-1]-sliceAsset[sliceAsset.length-1]) : 0;
+  const reqIm= lastSpread * 0.5; // simplified
+  // Transition P = completion prob
+  const transP= schedule.completion5 || 0;
+  // Regime
+  let regime="RANGE";
+  if(Math.abs(regAsset.r2)>0.3 && Math.abs(mas)>1e-7){
+    regime= mas>0 ? "UPTREND" : "DOWNTREND";
+  } else if(regAsset.r2<0.1) regime="CHOP";
+  // Support = number of same-direction FINAL events
+  const support=finalLedgers.filter(r=> (r.pl>0 && schedule.currentEvent.toLowerCase().includes('buy')) || (r.pl>0 && schedule.currentEvent.toLowerCase().includes('sell')) || true).length;
+  return {
+    pair, tf: tfLabel, signal: schedule.currentEvent,
+    mas, im, ratio, masRoc, imRoc, ratioRoc,
+    angleZ, convex, r2: regAsset.r2, f: regAsset.f, p: regAsset.p,
+    pipsHr, reqIm, transP, regime,
+    support, finalEvents: finalLedgers.length, medianAbsPl: median(finalLedgers.map(r=>Math.abs(r.pl))), plN: finalLedgers.length,
+    history: candles.length, htlLen: length
+  };
+}
+
+let globalEvalData=[];
+let globalFluctData=[];
+let evalSortCol=null, evalSortDir=1;
+let fluctSortCol="absPips", fluctSortDir=-1;
+
+function renderGlobalEvalTable(){
+  const tbody=document.querySelector("#globalEvalTable tbody");
+  if(!tbody) return;
+  const pairFilter=document.getElementById("evalPair")?.value || "ALL";
+  const tfFilter=document.getElementById("evalTf")?.value || globalState.tf.oanda;
+  let data=globalEvalData;
+  // filter by pair if not ALL
+  if(pairFilter!=="ALL") data=data.filter(r=>r.pair===pairFilter);
+  // filter by timeframe oanda
+  const tfLabel=TFS.find(t=>t.oanda===tfFilter)?.label || globalState.tf.label;
+  // if data has mixed tf, filter
+  // data is already for current global tf, but keep
+  let html="";
+  data.forEach(r=>{
+    html+=`<tr>
+      <td><strong>${r.pair}</strong></td>
+      <td>${r.tf}</td>
+      <td><span class="badge ${r.signal.toLowerCase().includes('buy')?'buy':r.signal.toLowerCase().includes('sell')?'sell':r.signal.includes('High')?'high':'low'}">${r.signal}</span></td>
+      <td class="mono">${r.mas.toExponential(3)}</td>
+      <td class="mono">${r.im.toExponential(3)}</td>
+      <td class="mono">${r.ratio.toFixed(3)}</td>
+      <td class="mono">${r.masRoc.toExponential(3)}</td>
+      <td class="mono">${r.imRoc.toExponential(3)}</td>
+      <td class="mono">${r.ratioRoc.toExponential(3)}</td>
+      <td class="mono">${r.angleZ.toFixed(2)}</td>
+      <td class="mono">${r.convex.toExponential(3)}</td>
+      <td class="mono">${r.r2.toFixed(3)}</td>
+      <td class="mono">${r.f.toFixed(1)}</td>
+      <td class="mono">${r.p.toFixed(3)}</td>
+      <td class="mono">${r.pipsHr.toFixed(2)}</td>
+      <td class="mono">${r.reqIm.toFixed(5)}</td>
+      <td class="mono">${(r.transP*100).toFixed(1)}%</td>
+      <td><span class="badge ${r.regime==="UPTREND"?"buy":r.regime==="DOWNTREND"?"sell":"low"}">${r.regime}</span></td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+}
+
+function sortAndRenderGlobalEval(){
+  if(!globalEvalData.length){ renderGlobalEvalTable(); return; }
+  if(!evalSortCol){ renderGlobalEvalTable(); return; }
+  const col=evalSortCol, dir=evalSortDir;
+  const map={pair:"pair", tf:"tf", signal:"signal", mas:"mas", im:"im", ratio:"ratio", masRoc:"masRoc", imRoc:"imRoc", ratioRoc:"ratioRoc", angleZ:"angleZ", convex:"convex", r2:"r2", f:"f", p:"p", pipsHr:"pipsHr", reqIm:"reqIm", transP:"transP", regime:"regime"};
+  const key=map[col]||col;
+  globalEvalData.sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(typeof va==="string" && typeof vb==="string") return dir*va.localeCompare(vb);
+    if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+  });
+  renderGlobalEvalTable();
+}
+
+function renderGlobalFluctTable(){
+  const tbody=document.querySelector("#globalFluctTable tbody");
+  const sub=document.getElementById("fluctuationSubtitle");
+  if(!tbody) return;
+  const pairFilter=document.getElementById("fluctPair")?.value || "ALL";
+  let data=[...globalFluctData];
+  if(pairFilter!=="ALL") data=data.filter(r=>r.pair===pairFilter);
+  // rank by |Pips/Hr|
+  data.sort((a,b)=>Math.abs(b.pipsHr)-Math.abs(a.pipsHr));
+  data.forEach((r,i)=>r.rank=i+1);
+  if(sub){
+    const tfLabel=globalState.tf.label;
+    sub.textContent=`${tfLabel} · ${data.length} / 28 pairs · rank by |Pips/Hr| · ${data.length} corroborated by maximum-history FINAL event outcomes`;
+  }
+  let html="";
+  data.forEach(r=>{
+    html+=`<tr>
+      <td class="mono">${r.rank}</td>
+      <td><strong>${r.pair}</strong></td>
+      <td>${r.tf}</td>
+      <td><span class="badge ${r.signal.toLowerCase().includes('buy')?'buy':r.signal.toLowerCase().includes('sell')?'sell':r.signal.includes('High')?'high':'low'}">${r.signal}</span></td>
+      <td class="mono">${r.pipsHr.toFixed(2)}</td>
+      <td class="mono">${Math.abs(r.pipsHr).toFixed(2)}</td>
+      <td class="mono">${r.medianAbsPl.toFixed(1)}</td>
+      <td class="mono">${r.finalEvents}</td>
+      <td class="mono">${r.plN}</td>
+      <td class="mono">${r.history}</td>
+      <td class="mono">${r.htlLen}</td>
+      <td class="mono">${r.support}</td>
+      <td><span class="badge ${r.regime==="UPTREND"?"buy":r.regime==="DOWNTREND"?"sell":"low"}">${r.regime}</span></td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+}
+
+function sortAndRenderGlobalFluct(){
+  if(!globalFluctData.length){ renderGlobalFluctTable(); return; }
+  if(!fluctSortCol){ renderGlobalFluctTable(); return; }
+  const col=fluctSortCol, dir=fluctSortDir;
+  const map={rank:"rank", pair:"pair", tf:"tf", signal:"signal", pipsHr:"pipsHr", absPips:"pipsHr", medianAbsPl:"medianAbsPl", finalEvents:"finalEvents", plN:"plN", history:"history", htlLen:"htlLen", support:"support", regime:"regime"};
+  const key=map[col]||col;
+  globalFluctData.sort((a,b)=>{
+    let va= key==="absPips" ? Math.abs(a.pipsHr) : a[key];
+    let vb= key==="absPips" ? Math.abs(b.pipsHr) : b[key];
+    if(typeof va==="string" && typeof vb==="string") return dir*va.localeCompare(vb);
+    if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+  });
+  renderGlobalFluctTable();
+}
+
+function fmtP(p){return p>10?p.toFixed(3):p.toFixed(5);}
+function fmtT(d,tf){if(!d)return "";if(tf.sec<60)return d.toLocaleTimeString();if(tf.sec<86400)return d.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});return d.toLocaleDateString();}
+
+class St{constructor(pair){this.pair=pair;this.tf=TFS.find(t=>t.oanda==="M5");this.strategy="Asset";this.length=450;this.filter=0.5;this.candles=[];this.calc=null;this.visible=200;this.offset=0;this.rightIndent=80;this.crossIdx=null;this.drag=false;this.dragX=0;this.dragOff=0;this.tickets=[{on:false,pair,tf:this.tf,strat:"Asset",len:450,filt:0.5,units:1000},{on:false,pair,tf:this.tf,strat:"Asset",len:450,filt:0.5,units:1000},{on:false,pair,tf:this.tf,strat:"Asset",len:450,filt:0.5,units:1000}];}}
+const states=PAIRS.map(p=>new St(p));
+
+// Global independent schedule state
+let globalState={tf:TFS.find(t=>t.oanda==="M5"), strategy:"Asset", length:450, filter:0.5};
+let globalScheduleData=[];
+let sortCol=null, sortDir=1;
+
+function buildGlobalControls(){
+ const tfSel=document.getElementById("globalTf");
+ tfSel.innerHTML=TFS.map(t=>`<option value="${t.oanda}" ${t.oanda===globalState.tf.oanda?'selected':''}>${t.label}</option>`).join("");
+ tfSel.addEventListener("change",e=>{globalState.tf=TFS.find(t=>t.oanda===e.target.value); loadGlobalSchedule();});
+ document.getElementById("globalStrat").addEventListener("change",e=>{globalState.strategy=e.target.value; loadGlobalSchedule();});
+ document.getElementById("globalLen").addEventListener("change",e=>{globalState.length=parseInt(e.target.value)||450; loadGlobalSchedule();});
+ document.getElementById("globalRefresh").addEventListener("click",()=>loadGlobalSchedule());
+ // sortable headers
+ document.querySelectorAll("#globalScheduleTable th[data-col]").forEach(th=>{
+   th.addEventListener("click",()=>{
+     const col=th.getAttribute("data-col");
+     if(sortCol===col){ sortDir*=-1; }else{ sortCol=col; sortDir=1; }
+     document.querySelectorAll("#globalScheduleTable th").forEach(h=>h.classList.remove("sort-asc","sort-desc"));
+     th.classList.add(sortDir===1?"sort-asc":"sort-desc");
+     sortAndRenderGlobal();
+   });
+ });
+}
+
+function sortAndRenderGlobal(){
+ if(!globalScheduleData.length) return;
+ const col=sortCol;
+ if(!col){ renderGlobalTable(); return; }
+ const dir=sortDir;
+ globalScheduleData.sort((a,b)=>{
+   let va, vb;
+   switch(col){
+     case "pair": va=a.schedule.pair; vb=b.schedule.pair; break;
+     case "timeframe": va=a.timeframe; vb=b.timeframe; break;
+     case "strategy": va=a.strategy; vb=b.strategy; break;
+     case "length": va=a.schedule.length; vb=b.schedule.length; break;
+     case "filter": va=a.schedule.filter; vb=b.schedule.filter; break;
+     case "currentPrice": va=a.schedule.currentPrice; vb=b.schedule.currentPrice; break;
+     case "currentEvent": va=a.schedule.currentEvent; vb=b.schedule.currentEvent; break;
+     case "currentEventOpen": va=a.schedule.currentEventOpen; vb=b.schedule.currentEventOpen; break;
+     case "location": va=a.schedule.currentAge||0; vb=b.schedule.currentAge||0; break;
+     case "completion5": va=a.schedule.completion5; vb=b.schedule.completion5; break;
+     case "completion10": va=a.schedule.completion10; vb=b.schedule.completion10; break;
+     case "events": va=a.schedule.events; vb=b.schedule.events; break;
+     case "durationMAE": va=a.schedule.durationMAE; vb=b.schedule.durationMAE; break;
+     case "envelopeMAE": va=a.schedule.envelopeMAE; vb=b.schedule.envelopeMAE; break;
+     case "onsetBrier": va=a.schedule.onsetBrier; vb=b.schedule.onsetBrier; break;
+     case "historicalBrier": va=a.schedule.historicalBrier; vb=b.schedule.historicalBrier; break;
+     case "nextEvent": va=a.schedule.meanDuration||0; vb=b.schedule.meanDuration||0; break;
+     case "forecastEnvelope": va=a.schedule.meanEnv||0; vb=b.schedule.meanEnv||0; break;
+     default: va=""; vb="";
+   }
+   if(typeof va==="string" && typeof vb==="string"){ return dir*va.localeCompare(vb); }
+   if(va<vb) return -1*dir; if(va>vb) return 1*dir; return 0;
+ });
+ renderGlobalTable();
+}
+
+function renderGlobalTable(){
+ const tbody=document.querySelector("#globalScheduleTable tbody");
+ let html="";
+ globalScheduleData.forEach(row=>{
+   const s=row.schedule;
+   html+=`<tr>
+    <td><strong>${s.pair}</strong></td>
+    <td>${row.timeframe}</td>
+    <td>${row.strategy}</td>
+    <td class="mono">${s.length}</td>
+    <td class="mono">${s.filter}</td>
+    <td class="mono">${fmtP(s.currentPrice)}</td>
+    <td><span class="badge ${s.currentEvent.toLowerCase().includes('buy')?'buy':s.currentEvent.toLowerCase().includes('sell')?'sell':s.currentEvent.includes('High')?'high':'low'}">${s.currentEvent}</span></td>
+    <td class="mono">${s.currentEventOpen}</td>
+    <td class="mono">${s.location}</td>
+    <td class="mono">${(s.completion5*100).toFixed(1)}%</td>
+    <td class="mono">${(s.completion10*100).toFixed(1)}%</td>
+    <td class="mono">${s.events}</td>
+    <td class="mono">${s.durationMAE.toFixed(2)}</td>
+    <td class="mono">${s.envelopeMAE.toFixed(5)}</td>
+    <td class="mono">${s.onsetBrier.toFixed(3)}</td>
+    <td class="mono">${s.historicalBrier.toFixed(3)}</td>
+    <td class="mono">${s.nextEvent}</td>
+    <td class="mono">${s.forecastEnvelope}</td>
+   </tr>`;
+ });
+ tbody.innerHTML=html;
+}
+
+async function loadGlobalSchedule(){
+
+ const status=document.getElementById("globalStatus");
+ status.textContent="Loading global schedule...";
+ const env=document.getElementById("env").value;
+ const tok=document.getElementById("token").value.trim();
+ globalScheduleData=[];
+ for(let i=0;i<PAIRS.length;i++){
+   const pair=PAIRS[i];
+   let candles;
+   try{
+     if(tok){
+       const url=oandaUrl(env,pair,globalState.tf.oanda,5000);
+       const r=await fetch(url,{headers:{Authorization:`Bearer ${tok}`}});
+       if(!r.ok) throw new Error(await r.text());
+       const j=await r.json();
+       candles=j.candles.filter(c=>c.complete).map(c=>({time:new Date(c.time),open:parseFloat(c.mid.o),high:parseFloat(c.mid.h),low:parseFloat(c.mid.l),close:parseFloat(c.mid.c)}));
+     }else{
+       candles=synth(pair,5000);
+     }
+   }catch(e){ candles=synth(pair,5000); }
+   const calc=computeAll(candles, globalState.length, globalState.strategy, pair);
+   globalScheduleData.push({pair, timeframe:globalState.tf.label, strategy:globalState.strategy, schedule:calc.schedule, candles});
+   // survival for this pair
+   const survRows=computeHistoricalSurvival(candles, calc.htl, calc.schedule, pair);
+   // eval for this pair
+   const ledRowsForEval=computeEventLedger(candles, calc.htl, calc.schedule, pair, globalState.tf.label);
+   const evalRow=computeEvaluationForPair(candles, calc.htl, calc.schedule, ledRowsForEval, pair, globalState.tf.label, globalState.length);
+   if(!window._tempEval) window._tempEval=[];
+   window._tempEval.push(evalRow);
+
+   if(!window._tempSurv) window._tempSurv=[];
+   window._tempSurv.push(...survRows.map(r=>({...r, timeframe:globalState.tf.label, strategy:globalState.strategy})));
+   // ledger for this pair - global panel removed, no accumulation
+
+
+   // small yield
+   await new Promise(r=>setTimeout(r,10));
+ }
+ status.textContent=`Loaded ${globalScheduleData.length} pairs — Length ${globalState.length} — ${globalState.tf.label} — ${globalState.strategy}`;
+ sortAndRenderGlobal();
+ // finalize survival
+ globalSurvivalData = window._tempSurv || [];
+ window._tempSurv=[];
+ sortAndRenderGlobalSurvival();
+ // finalize eval & fluct from _tempEval
+ globalEvalData = window._tempEval || [];
+ window._tempEval=[];
+ sortAndRenderGlobalEval();
+ globalFluctData = [...globalEvalData]; // same data but ranked
+ sortAndRenderGlobalFluct();
+ // global ledger panel removed
+
+}
+
+function buildGrid(){
+ const grid=document.getElementById("grid");grid.innerHTML="";
+ states.forEach(st=>{
+  const card=document.createElement("div");card.className="card";card.id=`card-${st.pair}`;
+  card.innerHTML=`
+   <div class="card-head"><div class="title" style="font-weight:900;min-width:70px">${st.pair}</div>
+    <div class="field"><span>Currency pair</span><select data-k="pair">${PAIRS.map(p=>`<option ${p===st.pair?'selected':''}>${p}</option>`).join("")}</select></div>
+    <div class="field"><span>Timeframe</span><select data-k="tf">${TFS.map(t=>`<option value="${t.oanda}" ${t.oanda===st.tf.oanda?'selected':''}>${t.label}</option>`).join("")}</select></div>
+    <div class="field"><span>Strategy</span><select data-k="strat"><option selected>Asset</option><option>Asset Inverse(HTL Asset)</option></select></div>
+    <div class="field"><span>Length (450)</span><input data-k="len" type="number" value="${st.length}" min="3" max="500"/></div>
+    <div class="field"><span>Filter NAI later</span><input data-k="filt" type="number" value="${st.filter}" disabled style="opacity:.5"/></div>
+   </div>
+   <div class="ctrl"><button data-a="refresh">Refresh</button><button data-a="z-">Zoom −</button><button data-a="z+">Zoom +</button><button data-a="l+">Left +</button><button data-a="l-">Left −</button><button data-a="r+">Right +</button><button data-a="r-">Right −</button><button data-a="max">Maximize</button><span data-k="leg" style="margin-left:auto;font-size:10px;font-weight:900"></span></div>
+   <div class="canvas-wrap main"><canvas data-k="cv"></canvas><div data-k="pt" class="price-tag" style="display:none"></div><div data-k="tt" class="time-tag" style="display:none"></div></div>
+   <div class="key"><span><i style="background:#0000ff"></i>Asset OVER=BUY thick same scale</span><span><i style="background:#ff6a00"></i>Inverse UNDER=SELL thick same scale</span><span><i style="background:#7c3aed"></i>hl2/upr same scale</span><span><i style="background:#db2777"></i>mui/ui same scale</span><span><i style="background:#059669"></i>uim/uir same scale</span><span data-k="info" style="margin-left:auto"></span></div>
+   <div class="canvas-wrap perf"><canvas data-k="perf"></canvas></div>
+   <div class="key" style="background:#e8cda3"><span>Running Performance Curve (pips) per timeframe & length</span><span data-k="perfStats" style="margin-left:auto"></span></div>
+   <div class="schedule-wrap"><table class="schedule-table" data-k="sched"><thead><tr>
+    <th>Currency pair</th><th>Length</th><th>Filter</th><th>Current Price</th><th>Current Event</th><th>Current Event Open</th><th>Location</th><th>Completion ≤5 bars</th><th>Completion ≤10 bars</th><th>Events</th><th>Duration MAE</th><th>Envelope MAE</th><th>Onset Brier</th><th>Historical Brier</th><th>Next HTL event</th><th>Forecast envelope</th>
+   </tr></thead><tbody></tbody></table></div>
+   <div class="schedule-panel" style="margin:8px 0">
+     <div class="schedule-head" style="padding:6px 8px"><span>Event Ledger · Result / Profit</span><span><button data-k="exportLedger">Export JSON</button></span></div>
+     <div class="schedule-wrap"><table class="schedule-table" data-k="ledger"><thead><tr>
+       <th>Event</th><th>Timeframe</th><th>Status</th><th>Result</th><th>Event P/L (pips)</th><th>Start</th><th>Bars</th><th>High</th><th>Low</th><th>Spread μ</th><th>Spread σ²</th><th>Slope</th><th>Area</th><th>Source crosses</th>
+     </tr></thead><tbody></tbody></table></div>
+   </div>
+   <div class="schedule-panel" style="margin:8px 0">
+     <div class="schedule-head" style="padding:6px 8px"><span>Historical Event Survival · Current Event Maturity</span><span><button data-k="exportSurv">Export JSON</button></span></div>
+     <div class="schedule-wrap"><table class="schedule-table" data-k="surv"><thead><tr>
+       <th>Currency pair ▲</th><th>Current event</th><th>Age (bars)</th><th>Additional event life</th><th>Historical survival</th><th>n</th><th>Mean bars</th><th>Median bars</th><th>Mean favorable move</th><th>Mean adverse move</th><th>Median ultimate upside</th><th>Median ultimate downside</th><th>25th-pctl upside</th><th>25th-pctl downside</th>
+     </tr></thead><tbody></tbody></table></div>
+   </div>
+   <div class="ticket"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><strong>Trade Ticket</strong><button data-m="ind" class="active">Indicator Only</button><button data-m="exec">Three Independent Execution Tickets</button></div><div class="tickets" data-k="tks"></div></div>
+  `;
+  grid.appendChild(card);
+ });
+ bindAll();
+}
+
+function bindAll(){
+ states.forEach(st=>{
+  const card=document.getElementById(`card-${st.pair}`);if(!card)return;
+  const selP=card.querySelector('[data-k="pair"]'),selTf=card.querySelector('[data-k="tf"]'),selS=card.querySelector('[data-k="strat"]'),inL=card.querySelector('[data-k="len"]');
+  selP.addEventListener("change",e=>{st.pair=e.target.value;loadData(st);});
+  selTf.addEventListener("change",e=>{st.tf=TFS.find(t=>t.oanda===e.target.value);loadData(st);});
+  selS.addEventListener("change",e=>{st.strategy=e.target.value;if(st.candles.length){st.calc=computeAll(st.candles,st.length,st.strategy,st.pair);drawCard(document.getElementById(`card-${st.pair}`),st);}});
+  inL.addEventListener("change",e=>{st.length=parseInt(e.target.value)||450;if(st.candles.length){st.calc=computeAll(st.candles,st.length,st.strategy,st.pair);drawCard(document.getElementById(`card-${st.pair}`),st);}});
+  card.querySelectorAll("[data-a]").forEach(b=>b.addEventListener("click",()=>{const a=b.getAttribute("data-a");if(a==="refresh")loadData(st);if(a==="z-")st.visible=Math.min(600,Math.round(st.visible*1.25));if(a==="z+")st.visible=Math.max(30,Math.round(st.visible/1.25));if(a==="l+")st.offset=Math.max(0,st.offset-16);if(a==="l-")st.offset=Math.min(Math.max(0,st.candles.length-st.visible),st.offset+16);if(a==="r+")st.rightIndent=Math.min(260,st.rightIndent+22);if(a==="r-")st.rightIndent=Math.max(0,st.rightIndent-22);if(a==="max")card.requestFullscreen?.();drawCard(document.getElementById(`card-${st.pair}`),st);}));
+  const indBtn=card.querySelector('[data-m="ind"]'),execBtn=card.querySelector('[data-m="exec"]'),tksWrap=card.querySelector('[data-k="tks"]');
+  function renderTks(){
+   tksWrap.innerHTML=st.tickets.map((t,i)=>`<div class="tkt ${t.on?'':'off'}"><div class="field"><span>Ticket ${i+1} IO ${t.on?'ON':'OFF'}</span><button data-ti="${i}">${t.on?'ON':'OFF'}</button></div><div class="field"><span>Charted Pair Default</span><select data-tk="pair" data-i="${i}">${PAIRS.map(p=>`<option ${p===t.pair?'selected':''}>${p}</option>`).join("")}</select></div><div class="field"><span>Timeframe</span><select data-tk="tf" data-i="${i}">${TFS.map(tf=>`<option value="${tf.oanda}" ${tf.oanda===t.tf.oanda?'selected':''}>${tf.label}</option>`).join("")}</select></div><div class="field"><span>Strategy</span><select data-tk="strat" data-i="${i}"><option ${t.strat==='Asset'?'selected':''}>Asset</option><option ${t.strat.includes('Inverse')?'selected':''}>Asset Inverse(HTL Asset)</option></select></div><div class="field"><span>Length</span><input data-tk="len" data-i="${i}" type="number" value="${t.len}"/></div><div class="field"><span>Filter NAI later</span><input data-tk="filt" data-i="${i}" type="number" value="${t.filt}" disabled style="opacity:.5"/></div><div class="field"><span>Units 1-100k</span><input data-tk="units" data-i="${i}" type="number" min="1" max="100000" value="${t.units}"/></div><div style="display:grid;gap:4px"><button class="buy" data-buy="${i}">Buy</button><button class="sell" data-sell="${i}">Sell</button></div></div>`).join("");
+   tksWrap.querySelectorAll("[data-ti]").forEach(b=>b.addEventListener("click",()=>{const i=parseInt(b.getAttribute("data-ti"));st.tickets[i].on=!st.tickets[i].on;renderTks();}));
+   tksWrap.querySelectorAll("[data-buy]").forEach(b=>b.addEventListener("click",()=>execTrade(st,parseInt(b.getAttribute("data-buy")),"buy")));
+   tksWrap.querySelectorAll("[data-sell]").forEach(b=>b.addEventListener("click",()=>execTrade(st,parseInt(b.getAttribute("data-sell")),"sell")));
+  }
+  renderTks();
+  indBtn.addEventListener("click",()=>{indBtn.classList.add("active");execBtn.classList.remove("active");tksWrap.style.display="none";});
+  execBtn.addEventListener("click",()=>{execBtn.classList.add("active");indBtn.classList.remove("active");tksWrap.style.display="grid";});
+  tksWrap.style.display="none";
+  function getIdx(e,canvas){const r=canvas.getBoundingClientRect();const x=e.clientX-r.left;const m={left:62,right:80+st.rightIndent};const pw=r.width-m.left-m.right;const cnt=Math.min(st.visible,st.candles.length);const bw=pw/cnt;const leftIdx=Math.floor((x-m.left)/bw);const end=st.candles.length-1-st.offset;const start=Math.max(0,end-cnt+1);return {leftIdx,start,end,bw,m,r,pw};}
+  function attach(canvas){
+   canvas.addEventListener("pointerdown",e=>{st.drag=true;st.dragX=e.clientX;st.dragOff=st.offset;canvas.setPointerCapture(e.pointerId);});
+   canvas.addEventListener("pointermove",e=>{if(!st.candles.length)return;const {leftIdx,start}=getIdx(e,canvas);if(leftIdx>=0&&leftIdx<st.visible){const di=start+leftIdx;if(di>=0&&di<st.candles.length)st.crossIdx=di;}if(st.drag){const {bw}=getIdx(e,canvas);const d=Math.round((e.clientX-st.dragX)/Math.max(1,bw));st.offset=Math.min(Math.max(0,st.candles.length-st.visible),Math.max(0,st.dragOff-d));}drawCard(document.getElementById(`card-${st.pair}`),st);});
+   canvas.addEventListener("pointerup",e=>{st.drag=false;try{canvas.releasePointerCapture(e.pointerId);}catch{}});canvas.addEventListener("pointerleave",()=>{if(!st.drag){st.crossIdx=null;drawCard(document.getElementById(`card-${st.pair}`),st);}});
+   canvas.addEventListener("wheel",e=>{e.preventDefault();st.visible=Math.min(700,Math.max(30,Math.round(st.visible*(e.deltaY>0?1.18:0.85))));drawCard(document.getElementById(`card-${st.pair}`),st);},{passive:false});
+  }
+  attach(card.querySelector('[data-k="cv"]'));attach(card.querySelector('[data-k="perf"]'));
+  drawCard(card,st);
+ });
+}
+
+function drawCard(card,st){
+ const cv=card.querySelector('[data-k="cv"]'),perfCv=card.querySelector('[data-k="perf"]'),leg=card.querySelector('[data-k="leg"]'),info=card.querySelector('[data-k="info"]'),perfStats=card.querySelector('[data-k="perfStats"]'),pt=card.querySelector('[data-k="pt"]'),tt=card.querySelector('[data-k="tt"]'),schedTable=card.querySelector('[data-k="sched"] tbody');
+ if(!cv||!st.candles.length||!st.calc)return;
+ const cnt=Math.min(st.visible,st.candles.length);const end=st.candles.length-1-st.offset;const start=Math.max(0,end-cnt+1);
+ (function(){
+  const rect=cv.getBoundingClientRect();const dpr=window.devicePixelRatio||1;cv.width=rect.width*dpr;cv.height=rect.height*dpr;const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);const W=rect.width,H=rect.height;ctx.clearRect(0,0,W,H);ctx.fillStyle="#fff6e0";ctx.fillRect(0,0,W,H);
+  const m={left:62,right:80+st.rightIndent,top:12,bottom:24};const pw=W-m.left-m.right,ph=H-m.top-m.bottom;
+  const slice=st.candles.slice(start,end+1);
+  const core=st.calc.htl.core;
+  const aSlice=st.calc.htl.asset.slice(start,end+1), iSlice=st.calc.htl.inverse.slice(start,end+1);
+  const hl2Slice=core.hl2.slice(start,end+1), uprSlice=core.upr.slice(start,end+1), muiSlice=core.mui.slice(start,end+1), uiSlice=core.ui.slice(start,end+1), uimSlice=core.uim.slice(start,end+1), uirSlice=core.uir.slice(start,end+1), miuSlice=core.miu.slice(start,end+1);
+  const vals=[...slice.flatMap(c=>[c.high,c.low]),...aSlice.filter(Number.isFinite),...iSlice.filter(Number.isFinite),...hl2Slice.filter(Number.isFinite),...uprSlice.filter(Number.isFinite),...muiSlice.filter(Number.isFinite),...uiSlice.filter(Number.isFinite),...uimSlice.filter(Number.isFinite),...uirSlice.filter(Number.isFinite),...miuSlice.filter(Number.isFinite)];
+  if(!vals.length)return;let min=Math.min(...vals),max=Math.max(...vals);const pad=(max-min)*0.20||max*0.012;min-=pad;max+=pad;
+  const yOf=v=>m.top+(1-(v-min)/(max-min))*ph;const xOf=i=>m.left+(i+0.5)*pw/cnt;
+  const bw=Math.max(2,pw/cnt*0.58);
+  ctx.strokeStyle="rgba(90,47,15,0.12)";for(let i=0;i<5;i++){const y=m.top+ph*i/4;ctx.beginPath();ctx.moveTo(m.left,y);ctx.lineTo(m.left+pw,y);ctx.stroke();}
+  slice.forEach((c,i)=>{const x=xOf(i);ctx.strokeStyle="#000";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,yOf(c.high));ctx.lineTo(x,yOf(c.low));ctx.stroke();ctx.fillStyle=c.close>=c.open?"#0a6a0a":"#a00000";ctx.fillRect(x-bw/2,Math.min(yOf(c.open),yOf(c.close)),bw,Math.max(2,Math.abs(yOf(c.open)-yOf(c.close))));});
+  function drawThin(arr,color,lineWidth,dash){
+   ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.setLineDash(dash||[]);ctx.beginPath();let s=false;arr.forEach((v,i)=>{if(!Number.isFinite(v))return;const x=xOf(i),y=yOf(v);if(!s){ctx.moveTo(x,y);s=true;}else ctx.lineTo(x,y);});ctx.stroke();ctx.setLineDash([]);
+  }
+  drawThin(hl2Slice,"#7c3aed",1.2,[6,4]); drawThin(uprSlice,"#7c3aed",1.2,[]); drawThin(muiSlice,"#db2777",1.2,[4,3]); drawThin(uiSlice,"#db2777",1.2,[]); drawThin(uimSlice,"#059669",1.1,[3,3]); drawThin(uirSlice,"#059669",1.1,[]); drawThin(miuSlice,"#a16207",1.0,[2,4]);
+  ctx.lineWidth=3.2;ctx.strokeStyle="#0000ff";ctx.beginPath();let s=false;aSlice.forEach((v,i)=>{if(!Number.isFinite(v))return;const x=xOf(i),y=yOf(v);if(!s){ctx.moveTo(x,y);s=true;}else ctx.lineTo(x,y);});ctx.stroke();
+  ctx.strokeStyle="#ff6a00";ctx.beginPath();s=false;iSlice.forEach((v,i)=>{if(!Number.isFinite(v))return;const x=xOf(i),y=yOf(v);if(!s){ctx.moveTo(x,y);s=true;}else ctx.lineTo(x,y);});ctx.stroke();
+  st.calc.signals.forEach(sig=>{if(sig.idx<start||sig.idx>end)return;const i=sig.idx-start;const x=xOf(i);const priceY=yOf(sig.price);ctx.fillStyle=sig.type==="buy"?"#00a000":"#c00000";ctx.strokeStyle="#000";ctx.lineWidth=1.3;ctx.beginPath();if(sig.type==="buy"){const ay=priceY+20;ctx.moveTo(x,ay+14);ctx.lineTo(x-7,ay);ctx.lineTo(x+7,ay);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle="#000";ctx.font="bold 11px sans-serif";ctx.textAlign="center";ctx.fillText("BUY",x,ay+26);ctx.fillStyle="#00a000";ctx.beginPath();ctx.arc(x,priceY,3.5,0,Math.PI*2);ctx.fill();}else{const ay=priceY-20;ctx.moveTo(x,ay-14);ctx.lineTo(x-7,ay);ctx.lineTo(x+7,ay);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle="#000";ctx.font="bold 11px sans-serif";ctx.textAlign="center";ctx.fillText("SELL",x,ay-22);ctx.fillStyle="#c00000";ctx.beginPath();ctx.arc(x,priceY,3.5,0,Math.PI*2);ctx.fill();}});
+  ctx.fillStyle="#000";ctx.font="10px monospace";ctx.textAlign="right";for(let i=0;i<5;i++){const v=min+(max-min)*(1-i/4);const y=m.top+ph*i/4;ctx.fillText(fmtP(v),W-4,y+3);}
+  if(st.crossIdx!==null&&st.crossIdx>=start&&st.crossIdx<=end){const i=st.crossIdx-start;const x=xOf(i);const y=yOf(slice[i].close);ctx.strokeStyle="rgba(0,0,0,0.6)";ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(x,m.top);ctx.lineTo(x,m.top+ph);ctx.stroke();ctx.beginPath();ctx.moveTo(m.left,y);ctx.lineTo(m.left+pw,y);ctx.stroke();ctx.setLineDash([]);pt.style.display="block";pt.textContent=fmtP(slice[i].close);pt.style.top=(y-10)+"px";tt.style.display="block";tt.textContent=fmtT(slice[i].time,st.tf)+" | "+fmtP(slice[i].close);tt.style.left=(x-20)+"px";}else{pt.style.display="none";tt.style.display="none";}
+  leg.textContent=`${st.pair} ${st.tf.label} ${st.strategy} L:${st.length} V:${cnt} Sigs:${st.calc.signals.filter(sg=>sg.idx>=start&&sg.idx<=end).length} ${st.calc.htl.usedFallback?'[FALLBACK]':'[anchors:'+st.calc.htl.anchors.length+']'}`;
+  const last=slice[slice.length-1];const lastSig=[...st.calc.signals].reverse().find(sg=>sg.idx<=end);info.textContent=last?` Last ${fmtP(last.close)} ${lastSig?`· Last ${lastSig.type.toUpperCase()} @${fmtP(lastSig.price)}`:''}`:"";
+  ctx.fillStyle="#000";ctx.font="9px monospace";ctx.textAlign="center";const step=Math.max(1,Math.floor(cnt/10));for(let i=0;i<cnt;i+=step){const x=m.left+(i+0.5)*pw/cnt;const t=st.candles[start+i]?.time;if(t)ctx.fillText(fmtT(t,st.tf),x,H-4);}
+ })();
+ (function(){
+  const rect=perfCv.getBoundingClientRect();const dpr=window.devicePixelRatio||1;perfCv.width=rect.width*dpr;perfCv.height=rect.height*dpr;const ctx=perfCv.getContext("2d");ctx.scale(dpr,dpr);const W=rect.width,H=rect.height;ctx.clearRect(0,0,W,H);ctx.fillStyle="#fff6e0";ctx.fillRect(0,0,W,H);
+  if(!st.calc)return;
+  const sliceEq=st.calc.equityCurve.slice(start,end+1);
+  if(!sliceEq.length)return;let min=Math.min(...sliceEq),max=Math.max(...sliceEq);if(min===max){min-=1;max+=1;}const pad=(max-min)*0.15||1;min-=pad;max+=pad;
+  const m={left:62,right:80+st.rightIndent,top:10,bottom:18};const pw=W-m.left-m.right,ph=H-m.top-m.bottom;
+  ctx.strokeStyle="rgba(90,47,15,0.15)";for(let i=0;i<4;i++){const y=m.top+ph*i/3;ctx.beginPath();ctx.moveTo(m.left,y);ctx.lineTo(m.left+pw,y);ctx.stroke();}
+  if(min<0&&max>0){const yZero=m.top+(1-(0-min)/(max-min))*ph;ctx.strokeStyle="rgba(0,0,0,0.4)";ctx.beginPath();ctx.moveTo(m.left,yZero);ctx.lineTo(m.left+pw,yZero);ctx.stroke();}
+  const yOf=v=>m.top+(1-(v-min)/(max-min))*ph;const xOf=i=>m.left+(i+0.5)*pw/cnt;
+  ctx.strokeStyle="#0000aa";ctx.lineWidth=2;ctx.beginPath();let s=false;sliceEq.forEach((v,i)=>{const x=xOf(i),y=yOf(v);if(!s){ctx.moveTo(x,y);s=true;}else ctx.lineTo(x,y);});ctx.stroke();
+  ctx.fillStyle="#000";ctx.font="10px monospace";ctx.textAlign="right";for(let i=0;i<4;i++){const v=min+(max-min)*(1-i/3);const y=m.top+ph*i/3;ctx.fillText(v.toFixed(1)+" p",W-4,y+3);}
+  if(st.crossIdx!==null&&st.crossIdx>=start&&st.crossIdx<=end){const i=st.crossIdx-start;const x=xOf(i);ctx.strokeStyle="rgba(0,0,0,0.6)";ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(x,m.top);ctx.lineTo(x,m.top+ph);ctx.stroke();ctx.setLineDash([]);}
+  perfStats.textContent=`Trades:${st.calc.trades} Wins:${st.calc.wins} Losses:${st.calc.losses} Eq:${st.calc.lastEquity.toFixed(1)}p | ${st.pair} ${st.tf.label} L:${st.length}`;
+ })();
+ (function(){
+  if(!schedTable||!st.calc||!st.calc.schedule)return;
+  const s=st.calc.schedule;
+  const row=`<tr>
+   <td><strong>${s.pair}</strong></td>
+   <td class="mono">${st.length}</td>
+   <td class="mono">${st.filter}</td>
+   <td class="mono">${fmtP(s.currentPrice)}</td>
+   <td><span class="badge ${s.currentEvent.toLowerCase().includes('buy')?'buy':s.currentEvent.toLowerCase().includes('sell')?'sell':s.currentEvent.includes('High')?'high':'low'}">${s.currentEvent}</span></td>
+   <td class="mono">${s.currentEventOpen}</td>
+   <td class="mono">${s.location}</td>
+   <td class="mono">${(s.completion5*100).toFixed(1)}%</td>
+   <td class="mono">${(s.completion10*100).toFixed(1)}%</td>
+   <td class="mono">${s.events}</td>
+   <td class="mono">${s.durationMAE.toFixed(2)} bars</td>
+   <td class="mono">${s.envelopeMAE.toFixed(5)}</td>
+   <td class="mono">${s.onsetBrier.toFixed(3)}</td>
+   <td class="mono">${s.historicalBrier.toFixed(3)}</td>
+   <td class="mono">${s.nextEvent}</td>
+   <td class="mono">${s.forecastEnvelope}</td>
+  </tr>`;
+  schedTable.innerHTML=row;
+ })();
+ // per-chart survival
+ (function(){
+  const survTable=card.querySelector('[data-k="surv"] tbody');
+  const exportBtn=card.querySelector('[data-k="exportSurv"]');
+  if(!survTable||!st.calc||!st.calc.htl||!st.calc.schedule) return;
+  const survRows=computeHistoricalSurvival(st.candles, st.calc.htl, st.calc.schedule, st.pair);
+  let html="";
+  survRows.forEach(r=>{
+    html+=`<tr>
+      <td><strong>${r.pair}</strong></td>
+      <td><span class="badge ${r.currentEvent.toLowerCase().includes('buy')?'buy':r.currentEvent.toLowerCase().includes('sell')?'sell':r.currentEvent.includes('High')?'high':'low'}">${r.currentEvent}</span></td>
+      <td class="mono">${r.age}</td>
+      <td class="mono">+${r.additionalLife}</td>
+      <td class="mono">${(r.historicalSurvival*100).toFixed(1)}%</td>
+      <td class="mono">${r.n}</td>
+      <td class="mono">${r.meanBars.toFixed(1)}</td>
+      <td class="mono">${r.medianBars.toFixed(1)}</td>
+      <td class="mono">${r.meanFav.toFixed(5)}</td>
+      <td class="mono">${r.meanAdv.toFixed(5)}</td>
+      <td class="mono">${r.medianUpside.toFixed(5)}</td>
+      <td class="mono">${r.medianDownside.toFixed(5)}</td>
+      <td class="mono">${r.p25Upside.toFixed(5)}</td>
+      <td class="mono">${r.p25Downside.toFixed(5)}</td>
+    </tr>`;
+  });
+  survTable.innerHTML=html;
+  if(exportBtn){
+    exportBtn.onclick=()=>{
+      exportJSON({generatedAt:new Date().toISOString(), pair:st.pair, settings:{timeframe:st.tf.label, strategy:st.strategy, length:st.length}, currentAge:survRows[0]?.age||0, rows:survRows}, `HTL_Survival_${st.pair}_${st.tf.oanda}_L${st.length}.json`);
+    };
+  }
+ })();
+ // per-chart ledger
+ (function(){
+  const ledgerTable=card.querySelector('[data-k="ledger"] tbody');
+  const exportLedgerBtn=card.querySelector('[data-k="exportLedger"]');
+  if(!ledgerTable||!st.calc||!st.calc.htl) return;
+  const ledRows=computeEventLedger(st.candles, st.calc.htl, st.calc.schedule, st.pair, st.tf.label);
+  let html="";
+  ledRows.forEach(r=>{
+    html+=`<tr>
+      <td class="mono">${r.event}</td>
+      <td>${r.timeframe}</td>
+      <td><span class="badge ${r.status==="FINAL"?"low":"buy"}">${r.status}</span></td>
+      <td><span class="badge ${r.result==="WIN"?"buy":r.result==="LOSS"?"sell":"low"}">${r.result}</span></td>
+      <td class="mono">${r.pl.toFixed(1)}</td>
+      <td class="mono">${r.start.toFixed(5)}</td>
+      <td class="mono">${r.bars}</td>
+      <td class="mono">${r.high.toFixed(5)}</td>
+      <td class="mono">${r.low.toFixed(5)}</td>
+      <td class="mono">${r.spreadMu.toFixed(5)}</td>
+      <td class="mono">${r.spreadVar.toFixed(8)}</td>
+      <td class="mono">${r.slope.toFixed(7)}</td>
+      <td class="mono">${r.area.toFixed(3)}</td>
+      <td class="mono">${r.source}</td>
+    </tr>`;
+  });
+  ledgerTable.innerHTML=html;
+  if(exportLedgerBtn){
+    exportLedgerBtn.onclick=()=>{
+      exportJSON({generatedAt:new Date().toISOString(), pair:st.pair, settings:{timeframe:st.tf.label, strategy:st.strategy, length:st.length}, rows:ledRows}, `HTL_Ledger_${st.pair}_${st.tf.oanda}_L${st.length}.json`);
+    };
+  }
+ })();
+}
+
+async function loadData(st){
+ const env=document.getElementById("env").value;const tok=document.getElementById("token").value.trim();
+ try{
+  if(tok){
+   const url=oandaUrl(env,st.pair,st.tf.oanda,5000);
+   const r=await fetch(url,{headers:{Authorization:`Bearer ${tok}`}});
+   if(!r.ok)throw new Error(await r.text());
+   const j=await r.json();
+   st.candles=j.candles.filter(c=>c.complete).map(c=>({time:new Date(c.time),open:parseFloat(c.mid.o),high:parseFloat(c.mid.h),low:parseFloat(c.mid.l),close:parseFloat(c.mid.c)}));
+  }else st.candles=synth(st.pair,5000);
+  st.calc=computeAll(st.candles,st.length,st.strategy,st.pair);
+  const card=document.getElementById(`card-${st.pair}`);if(card)drawCard(card,st);
+  document.getElementById("dot").style.background="#0a0";document.getElementById("stat").textContent=tok?`Live ${st.candles.length}`:`Demo ${st.candles.length}`;
+ }catch(e){console.error(e);document.getElementById("dot").style.background="#a00";document.getElementById("stat").textContent="Err "+e.message.slice(0,120);st.candles=synth(st.pair,5000);st.calc=computeAll(st.candles,st.length,st.strategy,st.pair);const card=document.getElementById(`card-${st.pair}`);if(card)drawCard(card,st);}
+}
+async function execTrade(st,idx,side){
+ const t=st.tickets[idx];if(!t.on){alert("Ticket OFF");return;}
+ const acct=document.getElementById("acct").value.trim(),tok=document.getElementById("token").value.trim(),env=document.getElementById("env").value;
+ if(!acct||!tok){alert("Set Account+Token");return;}
+ const units=side==="buy"?t.units:-t.units;const instr=t.pair.slice(0,3)+"_"+t.pair.slice(3);const base=env==="live"?"https://api-fxtrade.oanda.com":"https://api-fxpractice.oanda.com";const url=`${base}/v3/accounts/${acct}/orders`;const body={order:{type:"MARKET",instrument:instr,units:units.toString(),timeInForce:"FOK"}};
+ try{const r=await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${tok}`,"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)alert("Fail "+JSON.stringify(j).slice(0,600));else alert(`${side.toUpperCase()} ${t.units} ${t.pair} OK`);}catch(e){alert(e.message);}
+}
+
+function buildGrid(){
+ const grid=document.getElementById("grid");grid.innerHTML="";
+ states.forEach(st=>{
+  const card=document.createElement("div");card.className="card";card.id=`card-${st.pair}`;
+  card.innerHTML=`
+   <div class="card-head"><div class="title" style="font-weight:900;min-width:70px">${st.pair}</div>
+    <div class="field"><span>Currency pair</span><select data-k="pair">${PAIRS.map(p=>`<option ${p===st.pair?'selected':''}>${p}</option>`).join("")}</select></div>
+    <div class="field"><span>Timeframe</span><select data-k="tf">${TFS.map(t=>`<option value="${t.oanda}" ${t.oanda===st.tf.oanda?'selected':''}>${t.label}</option>`).join("")}</select></div>
+    <div class="field"><span>Strategy</span><select data-k="strat"><option selected>Asset</option><option>Asset Inverse(HTL Asset)</option></select></div>
+    <div class="field"><span>Length (450)</span><input data-k="len" type="number" value="${st.length}" min="3" max="500"/></div>
+    <div class="field"><span>Filter NAI later</span><input data-k="filt" type="number" value="${st.filter}" disabled style="opacity:.5"/></div>
+   </div>
+   <div class="ctrl"><button data-a="refresh">Refresh</button><button data-a="z-">Zoom −</button><button data-a="z+">Zoom +</button><button data-a="l+">Left +</button><button data-a="l-">Left −</button><button data-a="r+">Right +</button><button data-a="r-">Right −</button><button data-a="max">Maximize</button><span data-k="leg" style="margin-left:auto;font-size:10px;font-weight:900"></span></div>
+   <div class="canvas-wrap main"><canvas data-k="cv"></canvas><div data-k="pt" class="price-tag" style="display:none"></div><div data-k="tt" class="time-tag" style="display:none"></div></div>
+   <div class="key"><span><i style="background:#0000ff"></i>Asset OVER=BUY thick same scale</span><span><i style="background:#ff6a00"></i>Inverse UNDER=SELL thick same scale</span><span><i style="background:#7c3aed"></i>hl2/upr same scale</span><span><i style="background:#db2777"></i>mui/ui same scale</span><span><i style="background:#059669"></i>uim/uir same scale</span><span data-k="info" style="margin-left:auto"></span></div>
+   <div class="canvas-wrap perf"><canvas data-k="perf"></canvas></div>
+   <div class="key" style="background:#e8cda3"><span>Running Performance Curve (pips) per timeframe & length</span><span data-k="perfStats" style="margin-left:auto"></span></div>
+   <div class="schedule-wrap"><table class="schedule-table" data-k="sched"><thead><tr>
+    <th>Currency pair</th><th>Length</th><th>Filter</th><th>Current Price</th><th>Current Event</th><th>Current Event Open</th><th>Location</th><th>Completion ≤5 bars</th><th>Completion ≤10 bars</th><th>Events</th><th>Duration MAE</th><th>Envelope MAE</th><th>Onset Brier</th><th>Historical Brier</th><th>Next HTL event</th><th>Forecast envelope</th>
+   </tr></thead><tbody></tbody></table></div>
+   <div class="schedule-panel" style="margin:8px 0">
+     <div class="schedule-head" style="padding:6px 8px"><span>Event Ledger · Result / Profit</span><span><button data-k="exportLedger">Export JSON</button></span></div>
+     <div class="schedule-wrap"><table class="schedule-table" data-k="ledger"><thead><tr>
+       <th>Event</th><th>Timeframe</th><th>Status</th><th>Result</th><th>Event P/L (pips)</th><th>Start</th><th>Bars</th><th>High</th><th>Low</th><th>Spread μ</th><th>Spread σ²</th><th>Slope</th><th>Area</th><th>Source crosses</th>
+     </tr></thead><tbody></tbody></table></div>
+   </div>
+   <div class="schedule-panel" style="margin:8px 0">
+     <div class="schedule-head" style="padding:6px 8px"><span>Historical Event Survival · Current Event Maturity</span><span><button data-k="exportSurv">Export JSON</button></span></div>
+     <div class="schedule-wrap"><table class="schedule-table" data-k="surv"><thead><tr>
+       <th>Currency pair ▲</th><th>Current event</th><th>Age (bars)</th><th>Additional event life</th><th>Historical survival</th><th>n</th><th>Mean bars</th><th>Median bars</th><th>Mean favorable move</th><th>Mean adverse move</th><th>Median ultimate upside</th><th>Median ultimate downside</th><th>25th-pctl upside</th><th>25th-pctl downside</th>
+     </tr></thead><tbody></tbody></table></div>
+   </div>
+   <div class="ticket"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><strong>Trade Ticket</strong><button data-m="ind" class="active">Indicator Only</button><button data-m="exec">Three Independent Execution Tickets</button></div><div class="tickets" data-k="tks"></div></div>
+  `;
+  grid.appendChild(card);
+ });
+ bindAll();
+}
+
+function bindAll(){
+ states.forEach(st=>{
+  const card=document.getElementById(`card-${st.pair}`);if(!card)return;
+  const selP=card.querySelector('[data-k="pair"]'),selTf=card.querySelector('[data-k="tf"]'),selS=card.querySelector('[data-k="strat"]'),inL=card.querySelector('[data-k="len"]');
+  selP.addEventListener("change",e=>{st.pair=e.target.value;loadData(st);});
+  selTf.addEventListener("change",e=>{st.tf=TFS.find(t=>t.oanda===e.target.value);loadData(st);});
+  selS.addEventListener("change",e=>{st.strategy=e.target.value;if(st.candles.length){st.calc=computeAll(st.candles,st.length,st.strategy,st.pair);drawCard(document.getElementById(`card-${st.pair}`),st);}});
+  inL.addEventListener("change",e=>{st.length=parseInt(e.target.value)||450;if(st.candles.length){st.calc=computeAll(st.candles,st.length,st.strategy,st.pair);drawCard(document.getElementById(`card-${st.pair}`),st);}});
+  card.querySelectorAll("[data-a]").forEach(b=>b.addEventListener("click",()=>{const a=b.getAttribute("data-a");if(a==="refresh")loadData(st);if(a==="z-")st.visible=Math.min(600,Math.round(st.visible*1.25));if(a==="z+")st.visible=Math.max(30,Math.round(st.visible/1.25));if(a==="l+")st.offset=Math.max(0,st.offset-16);if(a==="l-")st.offset=Math.min(Math.max(0,st.candles.length-st.visible),st.offset+16);if(a==="r+")st.rightIndent=Math.min(260,st.rightIndent+22);if(a==="r-")st.rightIndent=Math.max(0,st.rightIndent-22);if(a==="max")card.requestFullscreen?.();drawCard(document.getElementById(`card-${st.pair}`),st);}));
+  const indBtn=card.querySelector('[data-m="ind"]'),execBtn=card.querySelector('[data-m="exec"]'),tksWrap=card.querySelector('[data-k="tks"]');
+  function renderTks(){
+   tksWrap.innerHTML=st.tickets.map((t,i)=>`<div class="tkt ${t.on?'':'off'}"><div class="field"><span>Ticket ${i+1} IO ${t.on?'ON':'OFF'}</span><button data-ti="${i}">${t.on?'ON':'OFF'}</button></div><div class="field"><span>Charted Pair Default</span><select data-tk="pair" data-i="${i}">${PAIRS.map(p=>`<option ${p===t.pair?'selected':''}>${p}</option>`).join("")}</select></div><div class="field"><span>Timeframe</span><select data-tk="tf" data-i="${i}">${TFS.map(tf=>`<option value="${tf.oanda}" ${tf.oanda===t.tf.oanda?'selected':''}>${tf.label}</option>`).join("")}</select></div><div class="field"><span>Strategy</span><select data-tk="strat" data-i="${i}"><option ${t.strat==='Asset'?'selected':''}>Asset</option><option ${t.strat.includes('Inverse')?'selected':''}>Asset Inverse(HTL Asset)</option></select></div><div class="field"><span>Length</span><input data-tk="len" data-i="${i}" type="number" value="${t.len}"/></div><div class="field"><span>Filter NAI later</span><input data-tk="filt" data-i="${i}" type="number" value="${t.filt}" disabled style="opacity:.5"/></div><div class="field"><span>Units 1-100k</span><input data-tk="units" data-i="${i}" type="number" min="1" max="100000" value="${t.units}"/></div><div style="display:grid;gap:4px"><button class="buy" data-buy="${i}">Buy</button><button class="sell" data-sell="${i}">Sell</button></div></div>`).join("");
+   tksWrap.querySelectorAll("[data-ti]").forEach(b=>b.addEventListener("click",()=>{const i=parseInt(b.getAttribute("data-ti"));st.tickets[i].on=!st.tickets[i].on;renderTks();}));
+   tksWrap.querySelectorAll("[data-buy]").forEach(b=>b.addEventListener("click",()=>execTrade(st,parseInt(b.getAttribute("data-buy")),"buy")));
+   tksWrap.querySelectorAll("[data-sell]").forEach(b=>b.addEventListener("click",()=>execTrade(st,parseInt(b.getAttribute("data-sell")),"sell")));
+  }
+  renderTks();
+  indBtn.addEventListener("click",()=>{indBtn.classList.add("active");execBtn.classList.remove("active");tksWrap.style.display="none";});
+  execBtn.addEventListener("click",()=>{execBtn.classList.add("active");indBtn.classList.remove("active");tksWrap.style.display="grid";});
+  tksWrap.style.display="none";
+  function getIdx(e,canvas){const r=canvas.getBoundingClientRect();const x=e.clientX-r.left;const m={left:62,right:80+st.rightIndent};const pw=r.width-m.left-m.right;const cnt=Math.min(st.visible,st.candles.length);const bw=pw/cnt;const leftIdx=Math.floor((x-m.left)/bw);const end=st.candles.length-1-st.offset;const start=Math.max(0,end-cnt+1);return {leftIdx,start,end,bw,m,r,pw};}
+  function attach(canvas){
+   canvas.addEventListener("pointerdown",e=>{st.drag=true;st.dragX=e.clientX;st.dragOff=st.offset;canvas.setPointerCapture(e.pointerId);});
+   canvas.addEventListener("pointermove",e=>{if(!st.candles.length)return;const {leftIdx,start}=getIdx(e,canvas);if(leftIdx>=0&&leftIdx<st.visible){const di=start+leftIdx;if(di>=0&&di<st.candles.length)st.crossIdx=di;}if(st.drag){const {bw}=getIdx(e,canvas);const d=Math.round((e.clientX-st.dragX)/Math.max(1,bw));st.offset=Math.min(Math.max(0,st.candles.length-st.visible),Math.max(0,st.dragOff-d));}drawCard(document.getElementById(`card-${st.pair}`),st);});
+   canvas.addEventListener("pointerup",e=>{st.drag=false;try{canvas.releasePointerCapture(e.pointerId);}catch{}});canvas.addEventListener("pointerleave",()=>{if(!st.drag){st.crossIdx=null;drawCard(document.getElementById(`card-${st.pair}`),st);}});
+   canvas.addEventListener("wheel",e=>{e.preventDefault();st.visible=Math.min(700,Math.max(30,Math.round(st.visible*(e.deltaY>0?1.18:0.85))));drawCard(document.getElementById(`card-${st.pair}`),st);},{passive:false});
+  }
+  attach(card.querySelector('[data-k="cv"]'));attach(card.querySelector('[data-k="perf"]'));
+  drawCard(card,st);
+ });
+}
+
+buildGrid();
+buildGlobalControls();
+states.forEach(async (st,i)=>{await new Promise(r=>setTimeout(r,i*60));loadData(st);});
+setTimeout(()=>loadGlobalSchedule(),800);
+document.getElementById("btnConnect").addEventListener("click",()=>{states.forEach(async (st,i)=>{await new Promise(r=>setTimeout(r,i*60));loadData(st);}); loadGlobalSchedule();});
+document.getElementById("btnApply").addEventListener("click",()=>{
+ const gl=parseInt(document.getElementById("gLen").value)||450;
+ states.forEach(s=>{s.length=gl;s.tickets.forEach(t=>t.len=gl);if(s.candles.length){s.calc=computeAll(s.candles,s.length,s.strategy,s.pair);}});
+ states.forEach(async (st,i)=>{await new Promise(r=>setTimeout(r,i*60));loadData(st);});
+});
+</script>
+</body>
+</html>
