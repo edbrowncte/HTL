@@ -1,15 +1,6 @@
-
-name = "htl-oracle"
+name = "htl"
 main = "worker.js"
 compatibility_date = "2024-01-01"
-
-[[kv_namespaces]]
-binding = "HTL_KV"
-id = "REPLACE_AFTER_CREATING_KV"
-
-[[kv_namespaces]]
-binding = "LENGTHS_KV"
-id = "REPLACE_AFTER_CREATING_KV_2"
 
 [triggers]
 crons = ["*/5 * * * *"]
